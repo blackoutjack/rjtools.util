@@ -1,4 +1,6 @@
 
+import sys
+
 DEBUG = False
 
 def set_debug(val):
@@ -13,8 +15,8 @@ def info(msg):
     print("INFO: %s" % msg)
 
 def warn(msg):
-    print("WARNING: %s" % msg)
+    print("WARNING: %s" % msg, file=sys.stderr)
 
 def err(msg):
-    raise("ERROR: %s" % msg)
+    print("ERROR: %s" % msg, file=sys.stderr)
 

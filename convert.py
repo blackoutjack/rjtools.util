@@ -1,5 +1,6 @@
 # Utility functions for parsing string and converting values
 
+from .msg import dbg, info, warn, err
 import numpy
 import datetime
 
@@ -8,7 +9,7 @@ def parse_date(date_str):
     return numpy.datetime64(date_formatted)
 
 def parse_numeric(inputstr):
-    inputstr = inputstr.strip()
+    inputstr = inputstr.lstrip()
     whole_number_text = ""
     numerator_text = ""
     denominator_text = ""
@@ -24,8 +25,11 @@ def parse_numeric(inputstr):
             else:
                 whole_number_text += c
         elif not is_numerator and c == " ":
-            if not whole_number_text:
-                is_numerator = True
+            if is_denominator and len(denominator_text) > 0:
+                # A space after the denominator indicates we're done.
+                remaining = inputstr[i+1:]
+                break
+            is_numerator = True
         elif c == "/":
             if numerator_text == "":
                 # The parsed "whole number" was actually the numerator.
@@ -34,10 +38,13 @@ def parse_numeric(inputstr):
             is_numerator = False
             is_denominator = True
         elif whole_number_text:
-                # Already found numeric data, so break at this point.
-                remaining = inputstr[i:]
-                break
+            # Already found numeric data, so done when we encounter nonnumeric.
+            remaining = inputstr[i:]
+            break
             
+    dbg("WHOLE NUMBER TEXT: %r" % whole_number_text)
+    dbg("NUMERATOR TEXT: %r" % numerator_text)
+    dbg("DENOMINATOR TEXT: %r" % denominator_text)
     if whole_number_text == "":
         warn("No numeric data found: %s" % inputstr)
         return 0, remaining
@@ -55,7 +62,7 @@ def parse_numeric(inputstr):
 
 # Return the next "word" and the remaining string
 def parse_nonnumeric(inputstr):
-    inputstr = inputstr.strip()
+    inputstr = inputstr.lstrip()
     text = ""
     remaining = ""
     saw_space = False
@@ -70,10 +77,15 @@ def parse_nonnumeric(inputstr):
 def amount_to_grams(amount):
     text = amount
     total = 0
+    if amount == "":
+        warn("No amount specified")
     while text != "":
         amounti, text = parse_numeric(text)
         units, text = parse_nonnumeric(text)
-        if units == "g":
+        if units == "":
+            warn("Units not specified, assuming grams: %s" % amount)
+            total += amounti
+        elif units == "g":
             total += amounti
         elif units == "lb" or units == "#":
             total += amounti * 453.5924
