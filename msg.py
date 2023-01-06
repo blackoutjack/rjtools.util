@@ -20,3 +20,5 @@ def warn(msg):
 def err(msg):
     print("ERROR: %s" % msg, file=sys.stderr)
 
+def s_if_plural(count):
+    return "" if count == 1 else "s"

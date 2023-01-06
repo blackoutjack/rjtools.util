@@ -3,7 +3,7 @@ import sys
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 
-from util.msg import set_debug, dbg, err
+from util.msg import set_debug, dbg, info, warn, err, s_if_plural
 from util.type import type_check
 
 redirect = None
@@ -121,6 +121,7 @@ def restore_output():
         return out, errout
 
 def run_tests(modNames, modValues):
+    testCount = 0
     failures = 0
 
     for modName in modNames:
@@ -128,9 +129,16 @@ def run_tests(modNames, modValues):
         symNames = dir(mod)
         for symName in symNames:
             if symName.startswith("test_"):
+                testCount += 1
                 result = run_test(mod, symName)
                 print_result(result, modName, symName)
                 if not result: failures += 1
+
+    info("Ran %d test%s" % (testCount, s_if_plural(testCount)))
+    if failures > 0:
+        warn("%d failure%s" % (failures, s_if_plural(failures)))
+    else:
+        info("No failures")
 
     return 0 if failures == 0 else 1
 
