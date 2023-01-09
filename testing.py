@@ -1,3 +1,6 @@
+#
+# Utility functions to support automated testing.
+#
 
 import sys
 import os

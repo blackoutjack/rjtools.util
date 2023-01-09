@@ -1,3 +1,6 @@
+#
+# Utility functions for generating standardized text output.
+#
 
 import sys
 
