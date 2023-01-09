@@ -1,5 +1,6 @@
 
 import sys
+import os
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 
@@ -66,8 +67,10 @@ def check_output(mod, expectedVarname, output, streamName):
             # test creator to specify that for everything.
             if output.endswith("\n"):
                 output = output[:-1]
+            moddir = os.path.dirname(mod.__file__)
+            output = output.replace(moddir, "%TESTDIR%")
             if output != expectedValue:
-                err("'%s' != %r" % (output, expectedValue))
+                err("\nExpected: %r\n  Actual: %r" % (expectedValue, output))
                 result = False
     elif len(output) > 0:
         result = False
