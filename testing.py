@@ -144,7 +144,7 @@ def run_tests(modNames, modValues):
     if failures > 0:
         warn("%d failure%s" % (failures, s_if_plural(failures)))
     else:
-        info("No failures")
+        info("All succeeded")
 
     return 0 if failures == 0 else 1
 
