@@ -8,7 +8,7 @@ import subprocess
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 
-from util.msg import set_debug, dbg, info, warn, err, s_if_plural
+from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.type import type_check
 
 redirect = None
@@ -80,6 +80,14 @@ def init_testing():
     options, args = parser.parse_args() 
     if options.debug:
         set_debug(True)
+
+def init_stubs(stubs=None):
+    # Install stubs/mocks
+    if stubs is not None:
+        if type(stubs) is not list:
+            stubs = [stubs]
+        for stub in stubs:
+            stub.use_stubs()
 
 def check_code(mod, expectedVarname, code):
     result = True
@@ -158,6 +166,9 @@ def run_subprocess(mod, testName):
     '''
     args = mod.__dict__[testName]
     type_check(args, type([]), testName)
+
+    # Pass along debug option
+    if get_debug(): args.append("-g")
 
     dbg("Running subprocess: '%s'" % "' '".join(args))
     processresult = subprocess.run(args, capture_output=True)

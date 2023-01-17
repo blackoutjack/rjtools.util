@@ -10,6 +10,9 @@ def set_debug(val):
     global DEBUG
     DEBUG = val
 
+def get_debug():
+    return DEBUG
+
 def dbg(msg):
     if DEBUG:
         print("DEBUG: %s" % msg)
