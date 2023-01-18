@@ -1,5 +1,5 @@
 #
-# Utility functions to support automated testing.
+# Utility functions and classes to support automated testing.
 #
 
 import sys
@@ -15,6 +15,35 @@ redirect = None
 
 INPROCESS_TEST_PREFIX = "test_"
 SUBPROCESS_TEST_PREFIX = "run_"
+
+class TestResults:
+    def __init__(self, suitename):
+        self.name = suitename
+        self.code = 0
+        self.total = 0
+        self.failures = 0
+
+    def add_success(self):
+        self.total += 1
+
+    def add_failure(self):
+        self.code = 1
+        self.total += 1
+        self.failures += 1
+
+    def print(self):
+        info("%s/ Ran %d test%s" % (self.name, self.total, s_if_plural(self.total)))
+        if self.failures > 0:
+            warn("%s/ %d failure%s" % (self.name, self.failures, s_if_plural(self.failures)))
+        else:
+            info("%s/ All succeeded" % self.name)
+
+def summarize_results(name, *results):
+    summary = TestResults(name)
+    summary.total = sum([result.total for result in results])
+    summary.failures = sum([result.failures for result in results])
+    summary.code = max([result.code for result in results])
+    return summary
 
 def cull_debug_lines(lines, std):
     '''Remove lines formatted like debug output, and print them to a stream
@@ -215,9 +244,8 @@ def restore_output():
 
         return out, errout
 
-def run_tests(modNames, modValues, suitename=None):
-    testCount = 0
-    failures = 0
+def run_tests(modNames, modValues, suitename):
+    results = TestResults(suitename)
 
     if suitename is not None:
         info("Running %s tests" % suitename)
@@ -226,21 +254,17 @@ def run_tests(modNames, modValues, suitename=None):
         symNames = dir(mod)
         for symName in symNames:
             if symName.startswith(INPROCESS_TEST_PREFIX):
-                testCount += 1
                 result = run_test(mod, symName)
                 print_result(result, modName, symName)
-                if not result: failures += 1
+                if not result: results.add_failure()
+                else: results.add_success()
             elif symName.startswith(SUBPROCESS_TEST_PREFIX):
-                testCount += 1
                 result = run_subprocess(mod, symName)
                 print_result(result, modName, symName)
-                if not result: failures += 1
+                if not result: results.add_failure()
+                else: results.add_success()
 
-    info("Ran %d test%s" % (testCount, s_if_plural(testCount)))
-    if failures > 0:
-        warn("%d failure%s" % (failures, s_if_plural(failures)))
-    else:
-        info("All succeeded")
+    results.print()
 
-    return 0 if failures == 0 else 1
+    return results
 

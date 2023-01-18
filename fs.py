@@ -53,21 +53,6 @@ class StubFS:
     # Process startup time (approx.) for `getmtime` mock
     startTime = time.time()
 
-    CWD = "/"
-
-    class File:
-        def __init__(self, contents):
-            self.contents = contents
-            self.pointer = 0
-
-        def read(self, buffer_size=-1):
-            if buffer_size == -1:
-                return contents
-            begin = self.pointer
-            end = min(self.pointer + buffer_size, len(contents))
-            self.pointer = end
-            return contents[begin:end]
-
     def is_file_content(self, val):
         return type(val) is bytes
 
@@ -91,6 +76,7 @@ class StubFS:
         # Starting at the fs root, resolve the file/directory contents
 
         # Tracks the value we've resolved to so far
+        # %%% Allow the client to indicate the fs contents
         cur = files
         for part in parts:
             if self.is_file_content(cur):
