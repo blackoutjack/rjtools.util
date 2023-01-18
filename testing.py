@@ -32,13 +32,24 @@ class TestResults:
         self.failures += 1
 
     def print(self):
-        info("%s/ Ran %d test%s" % (self.name, self.total, s_if_plural(self.total)))
+        initial = "%s: ran %d test%s" % (
+                self.name,
+                self.total,
+                s_if_plural(self.total)
+            )
         if self.failures > 0:
-            warn("%s/ %d failure%s" % (self.name, self.failures, s_if_plural(self.failures)))
+            warn("%s, %d failure%s"
+                % (initial, self.failures, s_if_plural(self.failures)))
         else:
-            info("%s/ All succeeded" % self.name)
+            print("%s, all successful" % initial)
 
 def summarize_results(name, *results):
+    '''Produce a summary TestResults object from the given results
+    
+    :param name: a descriptive name for the summary results
+    :param results: TestResults objects to be summarized
+    :return: a summary TestResults object
+    '''
     summary = TestResults(name)
     summary.total = sum([result.total for result in results])
     summary.failures = sum([result.failures for result in results])
@@ -221,14 +232,15 @@ def run_subprocess(mod, testName):
 
     return result
 
-def print_result(result, modName, testName):
-    print_pass(modName, testName) if result else print_fail(modName, testName)
+def print_result(suitename, modName, testName, result):
+    if result: print_pass(suitename, modName, testName)
+    else: print_fail(suitename, modName, testName)
 
-def print_pass(modName, testName):
-    print(modName + "." + testName + ": pass")
+def print_pass(suitename, modName, testName):
+    print("%s/%s.%s: pass" % (suitename, modName, testName))
 
-def print_fail(modName, testName):
-    print(modName + "." + testName + ": fail")
+def print_fail(suitename, modName, testName):
+    print("%s/%s.%s: FAIL" % (suitename, modName, testName))
 
 def redirect_output():
     global redirect
@@ -244,23 +256,53 @@ def restore_output():
 
         return out, errout
 
+def run_main_suite():
+    '''Encapsulates the boilerplate needed to run a testsuite from __main__.py
+
+    For any testsuite, the following code is all that's needed in __main__.py:
+
+        from util.testing import run_main_suite
+        from . import run
+        run_main_suite()
+    
+    Note that the testsuite must import the `run` method from __init__.py.
+    The process is terminated after completion.
+    '''
+    mainmod = sys.modules["__main__"]
+    init_testing()
+    sys.exit(mainmod.run().code)
+
+def run_test_suites(name, *testsuites):
+    '''Run a collection of testsuite modules and summarize results
+
+    :param name: descriptive name of the collection of testsuites
+    :param testsuites: list of modules representing the testsuites to be run
+    :return: TestResults object summarizing the testsuites that were run
+    '''
+    results = []
+    for suite in testsuites:
+        results.append(suite.run())
+
+    summary = summarize_results(name, *results)
+    summary.print()
+    return summary
+
 def run_tests(modNames, modValues, suitename):
     results = TestResults(suitename)
 
-    if suitename is not None:
-        info("Running %s tests" % suitename)
+    print("%s: running tests" % suitename)
     for modName in modNames:
         mod = modValues[modName]
         symNames = dir(mod)
         for symName in symNames:
             if symName.startswith(INPROCESS_TEST_PREFIX):
                 result = run_test(mod, symName)
-                print_result(result, modName, symName)
+                print_result(suitename, modName, symName, result)
                 if not result: results.add_failure()
                 else: results.add_success()
             elif symName.startswith(SUBPROCESS_TEST_PREFIX):
                 result = run_subprocess(mod, symName)
-                print_result(result, modName, symName)
+                print_result(suitename, modName, symName, result)
                 if not result: results.add_failure()
                 else: results.add_success()
 
