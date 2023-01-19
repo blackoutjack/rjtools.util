@@ -28,3 +28,7 @@ def err(msg):
 
 def s_if_plural(count):
     return "" if count == 1 else "s"
+
+def alpha(num, lower=False):
+    shift = 96 if lower else 64
+    return chr(num + shift)

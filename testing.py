@@ -5,6 +5,7 @@
 import sys
 import os
 import subprocess
+import traceback
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 
@@ -180,7 +181,7 @@ def run_test(mod, testName):
     try:
         result = fn()
     except Exception as ex:
-        print(str(ex))
+        traceback.print_exc()
         result = False
     out, errout = restore_output()
 
