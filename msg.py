@@ -17,14 +17,14 @@ def dbg(msg):
     if DEBUG:
         print("DEBUG: %s" % msg)
 
-def info(msg):
-    print("INFO: %s" % msg)
+def info(msg, indent=""):
+    print("%sINFO: %s" % (indent, msg))
 
-def warn(msg):
-    print("WARNING: %s" % msg, file=sys.stderr)
+def warn(msg, indent=""):
+    print("%sWARNING: %s" % (indent, msg), file=sys.stderr)
 
-def err(msg):
-    print("ERROR: %s" % msg, file=sys.stderr)
+def err(msg, indent=""):
+    print("%sERROR: %s" % (indent, msg), file=sys.stderr)
 
 def s_if_plural(count):
     return "" if count == 1 else "s"

@@ -6,6 +6,14 @@ from .msg import dbg, info, warn, err
 import numpy
 import datetime
 
+def today_date():
+    today = datetime.datetime.today()
+    # Strip potential leading zeros from each component (matches sheet format)
+    month = today.strftime("%m").lstrip("0")
+    day = today.strftime("%d").lstrip("0")
+    year = today.strftime("%Y")
+    return "/".join([month, day, year])
+
 def parse_date(date_str):
     date_formatted = datetime.datetime.strptime(date_str, "%m/%d/%Y")
     return numpy.datetime64(date_formatted)
@@ -76,16 +84,16 @@ def parse_nonnumeric(inputstr):
     text = text.strip().rstrip(".")
     return text, remaining
 
-def amount_to_grams(amount):
+def amount_to_grams(amount, indent=""):
     text = amount
     total = 0
     if amount == "":
-        warn("No amount specified")
+        warn("No amount specified", indent)
     while text != "":
         amounti, text = parse_numeric(text)
         units, text = parse_nonnumeric(text)
         if units == "":
-            warn("Units not specified, assuming grams: %s" % amount)
+            warn("Units not specified, assuming grams: %s" % amount, indent)
             total += amounti
         elif units == "g":
             total += amounti

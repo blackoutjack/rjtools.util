@@ -44,6 +44,13 @@ class TestResults:
         else:
             print("%s, all successful" % initial)
 
+# Wrap expected output in this class to search for the term in the output rather
+# than matching the entire string.
+class Grep:
+    def __init__(self, search):
+        # String to search for
+        self.search = search
+
 def summarize_results(name, *results):
     '''Produce a summary TestResults object from the given results
     
@@ -143,26 +150,64 @@ def check_code(mod, expectedVarname, code):
         err("Unexpected nonzero return code: \"%s\"" % code)
     return result
 
-def check_output(mod, expectedVarname, output, streamName):
-    result = True
+def check_output(mod, testName, expectedVarname, output, streamName):
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
-        if output != expectedValue:
-            # Actual output will typically have a newline, but don't force the
-            # test creator to specify that for everything.
-            if output.endswith("\n"):
-                output = output[:-1]
-            # Substitute a token for a directory as specified by the test.
-            if "TEST_DIR" in mod.__dict__:
-                testdir = mod.__dict__["TEST_DIR"]
-                output = output.replace(testdir, "%TESTDIR%")
-            if output != expectedValue:
-                err("%s\nExpected: %r\n  Actual: %r"
-                    % (mod.__name__, expectedValue, output))
-                result = False
-    elif len(output) > 0:
+
+        # Replace a `TEST_DIR` directory specified in the test with the string
+        # "%TEST_DIR%". When the directory is specified, do not allow matching
+        # against the unmodified output, since that could cause a test to pass
+        # on the machine where it was written and fail elsewhere.
+        if "TEST_DIR" in mod.__dict__:
+            output = output.replace(mod.__dict__["TEST_DIR"], "%TESTDIR%")
+
+        if type(expectedValue) is Grep:
+            searchVal = expectedValue.search
+
+            # Run the check variants. If any succeed, the overall check passes.
+            result = output.find(searchVal) >= 0
+
+            if not result:
+                err("%s/%s\nExpected: %r\n  Actual: %r"
+                    % (mod.__name__, testName, searchVal, output))
+        else:
+            # Compare to the exact output (possibly with `TEST_DIR` replaced)
+            idVariant = lambda out: out
+            # Actual output will typically end with newline, but don't force
+            # the test writer to specify that for everything.
+            leadNlVariant = lambda out: out.removesuffix("\n")
+            # Add a leading newline, to allow the test writer to use a
+            # left-justified multiline string for the expected value.
+            endNlVariant = lambda out: "\n" + out
+            # Check with both of the newline variants above.
+            sandwichNlVariant = lambda out: leadNlVariant(endNlVariant(out))
+
+            checkVariants = [
+                idVariant,
+                leadNlVariant,
+                endNlVariant,
+                sandwichNlVariant,
+            ]
+
+            result = False
+            for cv in checkVariants:
+                if cv(output) == expectedValue:
+                    result = True
+                    break
+
+            if not result:
+                err("%s/%s\nExpected: %r\n  Actual: %r"
+                    % (mod.__name__, testName, expectedValue, output))
+
+    elif len(output) == 0:
+        # Checks out ok: no output and no expected output
+        result = True
+    else:
+        # Got output when none was expected
+        err("%s/%s:\nUnexpected %s output: \"%s\""
+            % (mod.__name__, testName, streamName, output))
         result = False
-        err("Unexpected %s output: \"%s\"" % (streamName, output))
+
     return result
 
 def run_test(mod, testName):
@@ -189,9 +234,11 @@ def run_test(mod, testName):
         err("Falsy result for %s: %r" % (testName, result))
 
     outName = "out_" + testName[len(INPROCESS_TEST_PREFIX):]
-    if not check_output(mod, outName, out, "stdout"): result = False
+    if not check_output(mod, testName, outName, out, "stdout"):
+        result = False
     errName = "err_" + testName[len(INPROCESS_TEST_PREFIX):]
-    if not check_output(mod, errName, errout, "stderr"): result = False
+    if not check_output(mod, testName, errName, errout, "stderr"):
+        result = False
 
     return result
 
@@ -225,11 +272,16 @@ def run_subprocess(mod, testName):
 
     result = True
     codeName = "code_" + testName[len(SUBPROCESS_TEST_PREFIX):]
-    if not check_code(mod, codeName, code): result = False
+    if not check_code(mod, codeName, code):
+        result = False
+
     outName = "out_" + testName[len(SUBPROCESS_TEST_PREFIX):]
-    if not check_output(mod, outName, out, "stdout"): result = False
+    if not check_output(mod, testName, outName, out, "stdout"):
+        result = False
+
     errName = "err_" + testName[len(SUBPROCESS_TEST_PREFIX):]
-    if not check_output(mod, errName, errout, "stderr"): result = False
+    if not check_output(mod, testName, errName, errout, "stderr"):
+        result = False
 
     return result
 
