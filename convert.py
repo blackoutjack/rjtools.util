@@ -7,6 +7,10 @@ import numpy
 import datetime
 
 def today_date():
+    '''Get the current date with single-digit month and day and 4-digit year
+
+    :return: string, representing the current date
+    '''
     today = datetime.datetime.today()
     # Strip potential leading zeros from each component (matches sheet format)
     month = today.strftime("%m").lstrip("0")
@@ -14,77 +18,96 @@ def today_date():
     year = today.strftime("%Y")
     return "/".join([month, day, year])
 
-def parse_date(date_str):
-    date_formatted = datetime.datetime.strptime(date_str, "%m/%d/%Y")
-    return numpy.datetime64(date_formatted)
+def parse_date(dateStr):
+    '''Get a numpy object representing the given date in "m/d/Y" format
 
-def parse_numeric(inputstr):
-    inputstr = inputstr.lstrip()
-    whole_number_text = ""
-    numerator_text = ""
-    denominator_text = ""
-    is_numerator = False
-    is_denominator = False
+    :param dateStr: string, the date in "m/d/Y" format
+    :return: datetime64 object representing the date
+    '''
+    dateFormatted = datetime.datetime.strptime(dateStr, "%m/%d/%Y")
+    return numpy.datetime64(dateFormatted)
+
+def parse_numeric(inputStr):
+    '''Get a numeric prefix, including potential fraction part, from a string
+
+    Ignores initial whitespace. Produces a warning and returns 0 and the full
+    string (minus any initial whitespace) when no numeric input was encountered.
+    :param inputStr: string to parse for a numeric prefix
+    :return: (float, string) parsed number and remaining string portion
+    '''
+    inputStr = inputStr.lstrip()
+    wholeNumberText = ""
+    numeratorText = ""
+    denominatorText = ""
+    isNumerator = False
+    isDenominator = False
     remaining = ""
-    for i, c in enumerate(inputstr):
+    for i, c in enumerate(inputStr):
         if c.isdigit() or c == ".":
-            if is_denominator:
-                denominator_text += c
-            elif is_numerator:
-                numerator_text += c
+            if isDenominator:
+                denominatorText += c
+            elif isNumerator:
+                numeratorText += c
             else:
-                whole_number_text += c
-        elif not is_numerator and c == " ":
-            if is_denominator and len(denominator_text) > 0:
-                # A space after the denominator indicates we're done.
-                remaining = inputstr[i+1:]
+                wholeNumberText += c
+        elif not isNumerator and c == " ":
+            if isDenominator and len(denominatorText) > 0:
+                # A space after the denominator indicates we're done
+                remaining = inputStr[i+1:]
                 break
-            is_numerator = True
+            isNumerator = True
         elif c == "/":
-            if numerator_text == "":
-                # The parsed "whole number" was actually the numerator.
-                numerator_text = whole_number_text
-                whole_number_text = "0"
-            is_numerator = False
-            is_denominator = True
-        elif whole_number_text:
-            # Already found numeric data, so done when we encounter nonnumeric.
-            remaining = inputstr[i:]
+            if numeratorText == "":
+                # The parsed "whole number" was actually the numerator
+                numeratorText = wholeNumberText
+                wholeNumberText = "0"
+            isNumerator = False
+            isDenominator = True
+        elif wholeNumberText:
+            # Already found numeric data, so done when we encounter nonnumeric
+            remaining = inputStr[i:]
             break
             
-    dbg("WHOLE NUMBER TEXT: %r" % whole_number_text)
-    dbg("NUMERATOR TEXT: %r" % numerator_text)
-    dbg("DENOMINATOR TEXT: %r" % denominator_text)
-    if whole_number_text == "":
-        warn("No numeric data found: %s" % inputstr)
+    if wholeNumberText == "":
+        warn("No numeric data found: %s" % inputStr)
         return 0, remaining
     else:
-        number = float(whole_number_text)
+        number = float(wholeNumberText)
 
-    if numerator_text != "":
-        if denominator_text == "":
-            warn("Unable to parse fractional numeric data: '%s'" % inputstr)
+    if numeratorText != "":
+        if denominatorText == "":
+            warn("Unable to parse fractional numeric data: '%s'" % inputStr)
         else:
-            fractional_number = float(numerator_text) / float(denominator_text)
-            number += fractional_number
+            fractionalNumber = float(numeratorText) / float(denominatorText)
+            number += fractionalNumber
 
     return number, remaining
 
-# Return the next "word" and the remaining string
-def parse_nonnumeric(inputstr):
-    inputstr = inputstr.lstrip()
+def parse_nonnumeric(inputStr):
+    '''Get the next nonnumeric, whitespace-delimited word from the input
+
+    :param inputStr: string to parse for a numeric prefix
+    :return: (string, string) parsed word and remaining string portion
+    '''
+    inputStr = inputStr.lstrip()
     text = ""
     remaining = ""
-    saw_space = False
-    for i, c in enumerate(inputstr):
-        if c.isdigit() or c == " ":
-            remaining = inputstr[i:]
+    for i, c in enumerate(inputStr):
+        if c.isdigit() or c.isspace():
+            remaining = inputStr[i:]
             break
         text += c
     text = text.strip().rstrip(".")
     return text, remaining
 
 def amount_to_grams(amount, indent=""):
+    '''Parse a weight amount and convert it grams
+
+    Warns and assumes the unit is grams if not given explicitly.
+    :param amount: string, the weight amount to parse
+    :param indent: string of whitespace to prefix any output (warning messages)
+    :return: float, the weight converted to grams
+    '''
     text = amount
     total = 0
     if amount == "":

@@ -6,6 +6,7 @@ import sys
 import os
 import subprocess
 import traceback
+from threading import Thread, Condition
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 
@@ -13,13 +14,16 @@ from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.type import type_check
 
 redirect = None
+redirect_lock = None
+
+MULTITHREADED = True
 
 INPROCESS_TEST_PREFIX = "test_"
 SUBPROCESS_TEST_PREFIX = "run_"
 
 class TestResults:
-    def __init__(self, suitename):
-        self.name = suitename
+    def __init__(self, suiteName):
+        self.name = suiteName
         self.code = 0
         self.total = 0
         self.failures = 0
@@ -285,29 +289,36 @@ def run_subprocess(mod, testName):
 
     return result
 
-def print_result(suitename, modName, testName, result):
-    if result: print_pass(suitename, modName, testName)
-    else: print_fail(suitename, modName, testName)
+def print_result(suiteName, modName, testName, result):
+    if result: print_pass(suiteName, modName, testName)
+    else: print_fail(suiteName, modName, testName)
 
-def print_pass(suitename, modName, testName):
-    print("%s/%s.%s: pass" % (suitename, modName, testName))
+def print_pass(suiteName, modName, testName):
+    print("%s/%s.%s: pass" % (suiteName, modName, testName))
 
-def print_fail(suitename, modName, testName):
-    print("%s/%s.%s: FAIL" % (suitename, modName, testName))
+def print_fail(suiteName, modName, testName):
+    print("%s/%s.%s: FAIL" % (suiteName, modName, testName))
+
+def wait_condition():
+    return redirect is None
 
 def redirect_output():
-    global redirect
-    if redirect is None:
-        redirect = Redirect()
+    global redirect, redirect_lock
+    redirect_lock.acquire()
+    redirect_lock.wait_for(wait_condition)
+    redirect = Redirect()
  
 def restore_output():
-    global redirect
-    if redirect is not None:
-        redirect.restore()
-        out, errout = redirect.get_output()
-        redirect = None
+    global redirect, redirect_lock
+    assert redirect is not None
 
-        return out, errout
+    redirect.restore()
+    out, errout = redirect.get_output()
+    redirect = None
+    redirect_lock.notify()
+    redirect_lock.release()
+
+    return out, errout
 
 def run_main_suite():
     '''Encapsulates the boilerplate needed to run a testsuite from __main__.py
@@ -340,24 +351,41 @@ def run_test_suites(name, *testsuites):
     summary.print()
     return summary
 
-def run_tests(modNames, modValues, suitename):
-    results = TestResults(suitename)
+def run_test_module(mod, suiteName, results):
+    symNames = dir(mod)
+    for symName in symNames:
+        if symName.startswith(INPROCESS_TEST_PREFIX):
+            result = run_test(mod, symName)
+            print_result(suiteName, mod.__name__, symName, result)
+            if not result: results.add_failure()
+            else: results.add_success()
+        elif symName.startswith(SUBPROCESS_TEST_PREFIX):
+            result = run_subprocess(mod, symName)
+            print_result(suiteName, mod.__name__, symName, result)
+            if not result: results.add_failure()
+            else: results.add_success()
 
-    print("%s: running tests" % suitename)
+def run_tests(modNames, modValues, suiteName):
+    results = TestResults(suiteName)
+
+    print("%s: running tests" % suiteName)
+    threads = []
+    global redirect_lock
+    redirect_lock = Condition()
     for modName in modNames:
         mod = modValues[modName]
-        symNames = dir(mod)
-        for symName in symNames:
-            if symName.startswith(INPROCESS_TEST_PREFIX):
-                result = run_test(mod, symName)
-                print_result(suitename, modName, symName, result)
-                if not result: results.add_failure()
-                else: results.add_success()
-            elif symName.startswith(SUBPROCESS_TEST_PREFIX):
-                result = run_subprocess(mod, symName)
-                print_result(suitename, modName, symName, result)
-                if not result: results.add_failure()
-                else: results.add_success()
+        if MULTITHREADED:
+            # Run test modules in parallel (while individual tests within a
+            # module run serially).
+            t = Thread(name=modName, target=run_test_module, args=[mod, suiteName, results])
+            threads.append(t)
+            t.start()
+        else:
+            run_test_module(mod, suiteName, results)
+
+    if MULTITHREADED:
+        for thread in threads:
+            thread.join()
 
     results.print()
 
