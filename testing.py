@@ -372,7 +372,7 @@ def run_test_suites(name, *testsuites):
     return summary
 
 def run_test_module(mod, suiteName, results):
-    symNames = dir(mod)
+    symNames = vars(mod)
     for symName in symNames:
         if symName.startswith(INPROCESS_TEST_PREFIX):
             result = run_test(mod, symName)

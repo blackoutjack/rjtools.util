@@ -1,5 +1,4 @@
-
-# Mock filesystem contents
+'''Mock filesystem contents for testing the util.fs module'''
 
 class Link:
     def __init__(self, target):
