@@ -1,6 +1,6 @@
 '''Test conversion functions in the util.convert module'''
 
-import numpy
+from datetime import datetime
 from util.convert import parse_date, parse_nonnumeric, parse_numeric, amount_to_grams
 
 def test_numeric_empty():
@@ -81,7 +81,7 @@ def test_date_empty():
 def test_date_basic():
     '''Test basic date parsing'''
     date = parse_date("1/1/2023")
-    return date == numpy.datetime64("2023-01-01")
+    return date.strftime("%Y-%m-%d") == "2023-01-01"
 
 def test_amount_to_grams_empty():
     '''Test warning and 0 return value when input is the empty string'''

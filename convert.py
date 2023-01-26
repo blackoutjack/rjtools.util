@@ -3,29 +3,44 @@
 #
 
 from .msg import dbg, info, warn, err
-import numpy
 import datetime
 
 def today_date():
+    return datetime.datetime.today()
+
+def today_string():
     '''Get the current date with single-digit month and day and 4-digit year
 
     :return: string, representing the current date
     '''
-    today = datetime.datetime.today()
-    # Strip potential leading zeros from each component (matches sheet format)
-    month = today.strftime("%m").lstrip("0")
-    day = today.strftime("%d").lstrip("0")
-    year = today.strftime("%Y")
-    return "/".join([month, day, year])
+    today = today_date()
+    return date_string(today)
 
 def parse_date(dateStr):
-    '''Get a numpy object representing the given date in "m/d/Y" format
+    '''Get an object representing the given date in "m/d/Y" format
 
     :param dateStr: string, the date in "m/d/Y" format
     :return: datetime64 object representing the date
     '''
-    dateFormatted = datetime.datetime.strptime(dateStr, "%m/%d/%Y")
-    return numpy.datetime64(dateFormatted)
+    # Append the current year if no year is given.
+    firstSlash = dateStr.find("/")
+    if firstSlash > -1 and firstSlash == dateStr.rfind("/"):
+        dateStr += "/" + today_date().strftime("%Y")
+
+    if dateStr.rfind("/") == len(dateStr) - 3:
+        yearComponent = "%y"
+    else:
+        yearComponent = "%Y"
+
+    date = datetime.datetime.strptime(dateStr, "%%m/%%d/%s" % yearComponent)
+    return date
+
+def date_string(date):
+    # Strip potential leading zeros from each component (matches sheet format)
+    month = date.strftime("%m").lstrip("0")
+    day = date.strftime("%d").lstrip("0")
+    year = date.strftime("%Y")
+    return "/".join([month, day, year])
 
 def parse_numeric(inputStr):
     '''Get a numeric prefix, including potential fraction part, from a string
