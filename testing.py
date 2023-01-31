@@ -1,6 +1,4 @@
-#
-# Utility functions and classes to support automated testing.
-#
+'''Utility functions and classes to support automated testing'''
 
 import sys
 import os
@@ -20,6 +18,7 @@ MULTITHREADED = True
 
 INPROCESS_TEST_PREFIX = "test_"
 SUBPROCESS_TEST_PREFIX = "run_"
+BATCH_TEST_PREFIX = "batch_"
 
 class TestResults:
     def __init__(self, suiteName):
@@ -149,12 +148,12 @@ def check_code(mod, expectedVarname, code):
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if code != expectedValue:
-            err("%s\nExpected return code: %r\n  Actual return code: %r"
+            print_error("%s\nExpected return code: %r\n  Actual return code: %r"
                 % (mod.__name__, expectedValue, code))
             result = False
     elif code != 0:
         result = False
-        err("Unexpected nonzero return code: \"%s\"" % code)
+        print_error("Unexpected nonzero return code: \"%s\"" % code)
     return result
 
 def check_output(mod, testName, expectedVarname, output, streamName):
@@ -175,7 +174,7 @@ def check_output(mod, testName, expectedVarname, output, streamName):
             result = output.find(searchVal) >= 0
 
             if not result:
-                err("%s/%s\nExpected: %r\n  Actual: %r"
+                print_error("%s/%s\nExpected: %r\n  Actual: %r"
                     % (mod.__name__, testName, searchVal, output))
         else:
             # Compare to the exact output (possibly with `TEST_DIR` replaced)
@@ -203,7 +202,7 @@ def check_output(mod, testName, expectedVarname, output, streamName):
                     break
 
             if not result:
-                err("%s/%s\nExpected: %r\n  Actual: %r"
+                print_error("%s/%s\nExpected: %r\n  Actual: %r"
                     % (mod.__name__, testName, expectedValue, output))
 
     elif len(output) == 0:
@@ -211,7 +210,7 @@ def check_output(mod, testName, expectedVarname, output, streamName):
         result = True
     else:
         # Got output when none was expected
-        err("%s/%s:\nUnexpected %s output: \"%s\""
+        print_error("%s/%s:\nUnexpected %s output: \"%s\""
             % (mod.__name__, testName, streamName, output))
         result = False
 
@@ -223,7 +222,7 @@ def run_test(mod, testName):
     Triggered by creating a function "test_*" in the test module.
     Intended for unit testing.
     :param mod: the test module
-    :param testName: the name of the test in the module
+    :param testName: name of the test in the module (including "test_" prefix)
     :return: boolean indicating whether the test passed
     '''
     fn = mod.__dict__[testName]
@@ -238,12 +237,50 @@ def run_test(mod, testName):
     out, errout = restore_output()
 
     if not result:
-        err("Falsy result for %s: %r" % (testName, result))
+        print_error("Falsy result for %s: %r" % (testName, result))
 
     outName = "out_" + testName[len(INPROCESS_TEST_PREFIX):]
     if not check_output(mod, testName, outName, out, "stdout"):
         result = False
+
     errName = "err_" + testName[len(INPROCESS_TEST_PREFIX):]
+    if not check_output(mod, testName, errName, errout, "stderr"):
+        result = False
+
+    return result
+
+def check_process_result(mod, testName, testPrefix, processResult):
+    '''Validate results of a test that ran as a subprocess
+
+    :param mod: the test module
+    :param testName: name of the test in the module (including prefix)
+    :param testPrefix: string prefix (e.g. "run_") of the testName
+    :param processResult: result of the call to `subprocess.run`
+    :return: boolean indicating whether the test passed
+    '''
+
+    code = processResult.returncode
+
+    out = processResult.stdout
+    out = out.decode('utf-8')
+    out = cull_debug_text(out, sys.stdout)
+
+    errout = processResult.stderr
+    errout = errout.decode('utf-8')
+    errout = cull_debug_text(errout, sys.stderr)
+
+    testSuffix = testName[len(testPrefix):]
+
+    result = True
+    codeName = "code_" + testSuffix
+    if not check_code(mod, codeName, code):
+        result = False
+
+    outName = "out_" + testSuffix
+    if not check_output(mod, testName, outName, out, "stdout"):
+        result = False
+
+    errName = "err_" + testSuffix
     if not check_output(mod, testName, errName, errout, "stderr"):
         result = False
 
@@ -255,7 +292,7 @@ def run_subprocess(mod, testName):
     Triggered by setting a variable "run_*" in the test module to a list of
     arguments. Intended to test user interaction and output.
     :param mod: the test module
-    :param testName: the name of the test in the module
+    :param testName: name of the test in the module (including "run_" prefix)
     :return: boolean indicating whether the test passed
     '''
     args = mod.__dict__[testName]
@@ -265,31 +302,47 @@ def run_subprocess(mod, testName):
     if get_debug(): args.append("-g")
 
     dbg("Running subprocess: '%s'" % "' '".join(args))
-    processresult = subprocess.run(args, capture_output=True)
-    code = processresult.returncode
+    processResult = subprocess.run(args, capture_output=True)
 
-    out = processresult.stdout
-    out = out.decode('utf-8')
-    out = cull_debug_text(out, sys.stdout)
+    return check_process_result(
+        mod,
+        testName,
+        SUBPROCESS_TEST_PREFIX,
+        processResult)
 
-    errout = processresult.stderr
-    errout = errout.decode('utf-8')
-    errout = cull_debug_text(errout, sys.stderr)
+def run_batch(mod, testName):
+    '''Run a batch test that reads stdin to perform a series of operations
 
-    result = True
-    codeName = "code_" + testName[len(SUBPROCESS_TEST_PREFIX):]
-    if not check_code(mod, codeName, code):
-        result = False
+    Triggered by setting a variable "batch_*" in the test module to a list of
+    arguments, the last of which is a string representing the newline-separated
+    commands to be sent to stdin. Intended to test batch operations and output.
+    :param mod: the test module
+    :param testName: name of the test in the module (including "batch_" prefix)
+    :return: boolean indicating whether the test passed
+    '''
+    values = mod.__dict__[testName]
+    type_check(values, type(([],"")), testName)
 
-    outName = "out_" + testName[len(SUBPROCESS_TEST_PREFIX):]
-    if not check_output(mod, testName, outName, out, "stdout"):
-        result = False
+    args = values[0]
+    commands = values[1].encode('utf-8')
 
-    errName = "err_" + testName[len(SUBPROCESS_TEST_PREFIX):]
-    if not check_output(mod, testName, errName, errout, "stderr"):
-        result = False
+    # Pass along debug option
+    if get_debug(): args.append("-g")
 
-    return result
+    dbg("Running batch process: '%s'" % "' '".join(args))
+
+    processResult = subprocess.run(args, capture_output=True, input=commands)
+
+    return check_process_result(
+        mod,
+        testName,
+        BATCH_TEST_PREFIX,
+        processResult)
+
+def print_error(msg):
+    redirect_lock.acquire()
+    err(msg)
+    redirect_lock.release()
 
 def print_result(suiteName, modName, testName, result):
     # Producing output needs the lock to ensure redirection isn't in effect
@@ -310,7 +363,6 @@ def wait_condition():
 def redirect_output():
     global redirect, redirect_lock
     redirect_lock.acquire()
-    #redirect_lock.wait_for(wait_condition)
     redirect = Redirect()
  
 def restore_output():
@@ -320,7 +372,6 @@ def restore_output():
     redirect.restore()
     out, errout = redirect.get_output()
     redirect = None
-    #redirect_lock.notify()
     redirect_lock.release()
 
     return out, errout
@@ -378,6 +429,8 @@ def run_test_module(mod, suiteName, results):
             result = run_test(mod, symName)
         elif symName.startswith(SUBPROCESS_TEST_PREFIX):
             result = run_subprocess(mod, symName)
+        elif symName.startswith(BATCH_TEST_PREFIX):
+            result = run_batch(mod, symName)
         else:
             continue
 
