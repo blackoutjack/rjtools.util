@@ -29,6 +29,7 @@ def err(msg, indent=""):
 def s_if_plural(count):
     return "" if count == 1 else "s"
 
+# %%% Handle cases where num > 26 (return "AA", "AB" and so forth)
 def alpha(num, lower=False):
     shift = 96 if lower else 64
     return chr(num + shift)
