@@ -449,8 +449,8 @@ def run_tests(modNames, modValues, suiteName):
     for modName in modNames:
         mod = modValues[modName]
         if MULTITHREADED:
-            # Run test modules in parallel (while individual tests within a
-            # module run serially).
+            # Run test modules in parallel. (Individual tests within a
+            # module run serially to allow for intramodule data dependency).
             t = Thread(
                 name=modName,
                 target=run_test_module,
