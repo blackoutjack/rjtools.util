@@ -143,18 +143,31 @@ def init_stubs(stubs=None):
         for stub in stubs:
             stub.use_stubs()
 
-def check_code(mod, expectedVarname, code):
+def check_code(mod, testName, expectedVarname, code):
     result = True
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if code != expectedValue:
-            print_error("%s\nExpected return code: %r\n  Actual return code: %r"
-                % (mod.__name__, expectedValue, code))
+            print_error("%s/%s\nExpected return code: %r\n  Actual return code: %r"
+                % (mod.__name__, testName, expectedValue, code))
             result = False
     elif code != 0:
         result = False
         print_error("Unexpected nonzero return code: \"%s\"" % code)
     return result
+
+def check_result(mod, testName, expectedVarname, testResult):
+    checkResult = True
+    if expectedVarname in mod.__dict__:
+        expectedValue = mod.__dict__[expectedVarname]
+        if testResult != expectedValue:
+            print_error("%s/%s\nExpected result: %r\n  Actual result: %r"
+                % (mod.__name__, testName, expectedValue, testResult))
+            checkResult = False
+    elif not testResult:
+        print_error("%s/%s: falsy result: %r" % (mod.__name__, testName, testResult))
+        checkResult = False
+    return checkResult
 
 def check_output(mod, testName, expectedVarname, output, streamName):
     if expectedVarname in mod.__dict__:
@@ -225,19 +238,27 @@ def run_test(mod, testName):
     :param testName: name of the test in the module (including "test_" prefix)
     :return: boolean indicating whether the test passed
     '''
+    modName = mod.__name__
     fn = mod.__dict__[testName]
     type_check(fn, callable, testName)
 
+    exception = None
     redirect_output()
     try:
-        result = fn()
+        testResult = fn()
     except Exception as ex:
-        traceback.print_exc()
-        result = False
+        exception = ex
+        exceptionString = "%s: %s" % (ex.__class__.__name__, str(ex))
+        print("Exception occurred during %s/%s: %s"
+            % (modName, testName, exceptionString), file=sys.stderr)
+        testResult = None
     out, errout = restore_output()
 
-    if not result:
-        print_error("Falsy result for %s: %r" % (testName, result))
+    result = True
+
+    resultName = "result_" + testName[len(INPROCESS_TEST_PREFIX):]
+    if not check_result(mod, testName, resultName, testResult):
+        result = False
 
     outName = "out_" + testName[len(INPROCESS_TEST_PREFIX):]
     if not check_output(mod, testName, outName, out, "stdout"):
@@ -246,6 +267,9 @@ def run_test(mod, testName):
     errName = "err_" + testName[len(INPROCESS_TEST_PREFIX):]
     if not check_output(mod, testName, errName, errout, "stderr"):
         result = False
+
+    if get_debug() and exception is not None:
+        print_exception(exception)
 
     return result
 
@@ -273,7 +297,7 @@ def check_process_result(mod, testName, testPrefix, processResult):
 
     result = True
     codeName = "code_" + testSuffix
-    if not check_code(mod, codeName, code):
+    if not check_code(mod, testName, codeName, code):
         result = False
 
     outName = "out_" + testSuffix
@@ -338,6 +362,11 @@ def run_batch(mod, testName):
         testName,
         BATCH_TEST_PREFIX,
         processResult)
+
+def print_exception(exception):
+    redirect_lock.acquire()
+    traceback.print_exception(exception)
+    redirect_lock.release()
 
 def print_error(msg):
     redirect_lock.acquire()

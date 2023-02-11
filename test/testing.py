@@ -17,3 +17,16 @@ def test_next_order():
     '''Alphabetically before test_order_first but should be executed second'''
     return value_for_order_test == 1
 
+def test_exception():
+    '''Cause an exception during the test to ensure reasonable handling'''
+    mymap = {}
+    print("some normal output")
+    print("whoops: %s" % mymap["missing"])
+
+out_exception = "some normal output"
+
+err_exception = '''
+Exception occurred during util.test.testing/test_exception: KeyError: 'missing'
+'''
+
+result_exception = None
