@@ -11,14 +11,26 @@ from optparse import OptionParser
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.type import type_check
 
-redirect = None
-redirect_lock = RLock()
-
+# Toggle parallel running of test modules. Test cases within a module are
+# always run in the order they are defined in the module.
 MULTITHREADED = True
 
+# Prefixes of symbol names to use for defining test cases in a test module.
+# Symbols matching these prefixes are taken up as test cases.
 INPROCESS_TEST_PREFIX = "test_"
 SUBPROCESS_TEST_PREFIX = "run_"
 BATCH_TEST_PREFIX = "batch_"
+
+# Prefixes of symbol names for defining expected output for test cases.
+INPROCESS_RESULT_PREFIX = "result_"
+SUBPROCESS_CODE_PREFIX = "code_"
+TEST_OUTPUT_PREFIX = "out_"
+TEST_ERROR_PREFIX = "err_"
+
+# Thread
+redirect = None
+# Thread lock for coordinating
+redirect_lock = RLock()
 
 class TestResults:
     def __init__(self, suiteName):
@@ -256,15 +268,15 @@ def run_test(mod, testName):
 
     result = True
 
-    resultName = "result_" + testName[len(INPROCESS_TEST_PREFIX):]
+    resultName = INPROCESS_RESULT_PREFIX + testName[len(INPROCESS_TEST_PREFIX):]
     if not check_result(mod, testName, resultName, testResult):
         result = False
 
-    outName = "out_" + testName[len(INPROCESS_TEST_PREFIX):]
+    outName = TEST_OUTPUT_PREFIX + testName[len(INPROCESS_TEST_PREFIX):]
     if not check_output(mod, testName, outName, out, "stdout"):
         result = False
 
-    errName = "err_" + testName[len(INPROCESS_TEST_PREFIX):]
+    errName = TEST_ERROR_PREFIX + testName[len(INPROCESS_TEST_PREFIX):]
     if not check_output(mod, testName, errName, errout, "stderr"):
         result = False
 
@@ -296,15 +308,15 @@ def check_process_result(mod, testName, testPrefix, processResult):
     testSuffix = testName[len(testPrefix):]
 
     result = True
-    codeName = "code_" + testSuffix
+    codeName = SUBPROCESS_CODE_PREFIX + testSuffix
     if not check_code(mod, testName, codeName, code):
         result = False
 
-    outName = "out_" + testSuffix
+    outName = TEST_OUTPUT_PREFIX + testSuffix
     if not check_output(mod, testName, outName, out, "stdout"):
         result = False
 
-    errName = "err_" + testSuffix
+    errName = TEST_ERROR_PREFIX + testSuffix
     if not check_output(mod, testName, errName, errout, "stderr"):
         result = False
 
@@ -452,6 +464,18 @@ def run_test_suites(name, *testsuites):
     return summary
 
 def run_test_module(mod, suiteName, results):
+    '''
+    Invoke all tests in a module and print individual results.
+
+    This function is the unit of parallelism. Anything called from here should
+    lock or otherwise take care before accessing shared data or resources.
+
+    Individual tests within a module run serially to allow for intramodule data
+    dependency.
+    :param mod: Module, object representing the test module
+    :param suiteName: string, name of the suite of which this module is part
+    :param results: TestResults, an object to collect detailed test outcomes
+    '''
     symNames = vars(mod)
     for symName in symNames:
         if symName.startswith(INPROCESS_TEST_PREFIX):
@@ -468,6 +492,26 @@ def run_test_module(mod, suiteName, results):
         else: results.add_success()
 
 def run_tests(modNames, modValues, suiteName):
+    '''Run a set of test modules and print cumulative results.
+
+    This function is the entry point to be called from __init__.py in the
+    package directory defining a suite of test modules. Typical boilerplate is:
+
+        from util.testing import run_tests
+
+        def run():
+            from . import mytestmodule
+            from . import anothermodule
+
+            return run_tests(dir(), locals(), "suitename")
+
+    which calls this function to run the `mytestmodule` and `anothermodule` test
+    modules. The grouping of modules is called "suitename" in reporting.
+    :param modNames: names of the modules
+    :param modValues: map of module names to the module object
+    :param suiteName: name of this suite of tests, for summary display purposes
+    :return: a TestResults object summarizing the results from the modules
+    '''
     results = TestResults(suiteName)
 
     # Producing output needs the lock to ensure redirection isn't in effect

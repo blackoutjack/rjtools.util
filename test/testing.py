@@ -10,12 +10,14 @@ value_for_order_test = 0
 def test_order_first():
     '''With test_next_order, ensure that tests are run in order of definition'''
     global value_for_order_test
+    initialValue = value_for_order_test
     value_for_order_test = 1
-    return True
+    return initialValue == 0
 
 def test_next_order():
     '''Alphabetically before test_order_first but should be executed second'''
     return value_for_order_test == 1
+
 
 def test_exception():
     '''Cause an exception during the test to ensure reasonable handling'''
