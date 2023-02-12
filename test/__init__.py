@@ -10,5 +10,5 @@ def run():
 
     init_stubs(fs)
 
-    return run_tests(dir(), locals(), "util")
+    return run_tests("util", locals())
 

@@ -199,7 +199,7 @@ def check_output(mod, testName, expectedVarname, output, streamName):
             result = output.find(searchVal) >= 0
 
             if not result:
-                print_error("%s/%s\nExpected: %r\n  Actual: %r"
+                print_error("%s/%s\nExpected: %s\n  Actual: %s"
                     % (mod.__name__, testName, searchVal, output))
         else:
             # Compare to the exact output (possibly with `TEST_DIR` replaced)
@@ -227,7 +227,7 @@ def check_output(mod, testName, expectedVarname, output, streamName):
                     break
 
             if not result:
-                print_error("%s/%s\nExpected: %r\n  Actual: %r"
+                print_error("%s/%s\nExpected: %r\n  Actual: %s"
                     % (mod.__name__, testName, expectedValue, output))
 
     elif len(output) == 0:
@@ -417,52 +417,6 @@ def restore_output():
 
     return out, errout
 
-def run_main_suite():
-    '''Encapsulates the boilerplate needed to run a testsuite from __main__.py
-
-    For any testsuite, the following code is all that's needed in __main__.py:
-
-        from util.testing import run_main_suite
-        from . import run
-        run_main_suite()
-    
-    Note that the testsuite must import the `run` method from __init__.py.
-    The process is terminated after completion.
-    '''
-    mainmod = sys.modules["__main__"]
-    init_testing()
-    sys.exit(mainmod.run().code)
-
-def run_suite(suite, results):
-    results.append(suite.run())
-
-def run_test_suites(name, *testsuites):
-    '''Run a collection of testsuite modules and summarize results
-
-    :param name: descriptive name of the collection of testsuites
-    :param testsuites: list of modules representing the testsuites to be run
-    :return: TestResults object summarizing the testsuites that were run
-    '''
-    results = []
-    threads = []
-    for suite in testsuites:
-        if MULTITHREADED:
-            t = Thread(
-                name=name,
-                target=run_suite,
-                args=[suite, results])
-            threads.append(t)
-            t.start()
-        else:
-            run_suite(suite, results)
-
-    for thread in threads:
-        thread.join()
-
-    summary = summarize_results(name, *results)
-    summary.print()
-    return summary
-
 def run_test_module(mod, suiteName, results):
     '''
     Invoke all tests in a module and print individual results.
@@ -491,7 +445,7 @@ def run_test_module(mod, suiteName, results):
         if not result: results.add_failure()
         else: results.add_success()
 
-def run_tests(modNames, modValues, suiteName):
+def run_tests(suiteName, moduleMap):
     '''Run a set of test modules and print cumulative results.
 
     This function is the entry point to be called from __init__.py in the
@@ -503,13 +457,12 @@ def run_tests(modNames, modValues, suiteName):
             from . import mytestmodule
             from . import anothermodule
 
-            return run_tests(dir(), locals(), "suitename")
+            return run_tests("suitename", locals())
 
     which calls this function to run the `mytestmodule` and `anothermodule` test
     modules. The grouping of modules is called "suitename" in reporting.
-    :param modNames: names of the modules
-    :param modValues: map of module names to the module object
     :param suiteName: name of this suite of tests, for summary display purposes
+    :param moduleMap: map of module names to the module object
     :return: a TestResults object summarizing the results from the modules
     '''
     results = TestResults(suiteName)
@@ -519,8 +472,7 @@ def run_tests(modNames, modValues, suiteName):
     print("%s: running tests" % suiteName)
     redirect_lock.release()
     threads = []
-    for modName in modNames:
-        mod = modValues[modName]
+    for modName, mod in moduleMap.items():
         if MULTITHREADED:
             # Run test modules in parallel. (Individual tests within a
             # module run serially to allow for intramodule data dependency).
@@ -539,4 +491,65 @@ def run_tests(modNames, modValues, suiteName):
     results.print()
 
     return results
+
+def run_suite(suite, results):
+    results.append(suite.run())
+
+def run_test_suites(packageName, testsuites):
+    '''Run a collection of testsuite modules and summarize results
+
+    This function is the entrypoint for a test package to invoke test suites it
+    contains, via the package's __init__.py file. Typical boilerplate is:
+
+        from util.testing import run_test_suites
+
+        def run():
+            from . import unit
+            from . import user
+            from . import batch
+
+            return run_test_suites("shrem", locals())
+
+    :param packageName: descriptive name of the collection of testsuites
+    :param testsuites: map or list containing modules representing testsuites;
+        supports list for manual listing, and map to support passing `locals()`
+    :return: TestResults object summarizing the testsuites that were run
+    '''
+    results = []
+    threads = []
+    if type(testsuites) is dict:
+        testsuites = testsuites.values()
+    for suite in testsuites:
+        if MULTITHREADED:
+            t = Thread(
+                name=packageName,
+                target=run_suite,
+                args=[suite, results])
+            threads.append(t)
+            t.start()
+        else:
+            run_suite(suite, results)
+
+    for thread in threads:
+        thread.join()
+
+    summary = summarize_results(packageName, *results)
+    summary.print()
+    return summary
+
+def run_main_suite():
+    '''Encapsulates the boilerplate needed to run a testsuite from __main__.py
+
+    For any testsuite, the following code is all that's needed in __main__.py:
+
+        from util.testing import run_main_suite
+        from . import run
+        run_main_suite()
+
+    Note that the testsuite must import the `run` method from __init__.py.
+    The process is terminated after completion.
+    '''
+    mainmod = sys.modules["__main__"]
+    init_testing()
+    sys.exit(mainmod.run().code)
 
