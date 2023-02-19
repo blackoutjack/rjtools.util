@@ -33,3 +33,9 @@ def s_if_plural(count):
 def alpha(num, lower=False):
     shift = 96 if lower else 64
     return chr(num + shift)
+
+# %%% Handle double/triple/etc letters ("AA"=27, "AB"=28 and so forth)
+def num(alpha):
+    lower = alpha.lower() == alpha
+    shift = 96 if lower else 64
+    return ord(alpha) - shift

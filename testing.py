@@ -13,7 +13,7 @@ from util.type import type_check
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
-MULTITHREADED = True
+MULTITHREADED = False
 
 # Prefixes of symbol names to use for defining test cases in a test module.
 # Symbols matching these prefixes are taken up as test cases.
@@ -227,7 +227,7 @@ def check_output(mod, testName, expectedVarname, output, streamName):
                     break
 
             if not result:
-                print_error("%s/%s\nExpected: %r\n  Actual: %s"
+                print_error("%s/%s\nExpected: %s\n  Actual: %s"
                     % (mod.__name__, testName, expectedValue, output))
 
     elif len(output) == 0:
