@@ -2,6 +2,7 @@
 
 import sys
 import os
+import shutil
 import subprocess
 import traceback
 from threading import Thread, Condition, RLock
@@ -445,7 +446,7 @@ def run_test_module(mod, suiteName, results):
         if not result: results.add_failure()
         else: results.add_success()
 
-def run_tests(suiteName, moduleMap):
+def run_tests(suiteName, moduleMap, copyFromToFilePairs=None):
     '''Run a set of test modules and print cumulative results.
 
     This function is the entry point to be called from __init__.py in the
@@ -463,6 +464,9 @@ def run_tests(suiteName, moduleMap):
     modules. The grouping of modules is called "suitename" in reporting.
     :param suiteName: name of this suite of tests, for summary display purposes
     :param moduleMap: map of module names to the module object
+    :param copyTmpFiles: list of tuples representing (static, dynamic) file
+        paths, where static is copied to dynamic before testing, and dynamic is
+        removed after testing (if debug is not enabled)
     :return: a TestResults object summarizing the results from the modules
     '''
     results = TestResults(suiteName)
@@ -472,6 +476,10 @@ def run_tests(suiteName, moduleMap):
     print("%s: running tests" % suiteName)
     redirect_lock.release()
     threads = []
+
+    if copyFromToFilePairs is not None:
+        copy_test_files(copyFromToFilePairs)
+
     for modName, mod in moduleMap.items():
         if MULTITHREADED:
             # Run test modules in parallel. (Individual tests within a
@@ -488,9 +496,31 @@ def run_tests(suiteName, moduleMap):
     for thread in threads:
         thread.join()
 
+    if copyFromToFilePairs is not None:
+        remove_test_files(copyFromToFilePairs)
+
     results.print()
 
     return results
+
+def copy_test_files(filePairs):
+    if isinstance(filePairs, list):
+        for filePair in filePairs:
+            copy_test_files(filePair)
+    else:
+        assert isinstance(filePairs, tuple) and len(filePairs) == 2
+        shutil.copy(filePairs[0], filePairs[1])
+
+def remove_test_files(filePairs):
+    if get_debug():
+        return
+
+    if isinstance(filePairs, list):
+        for filePair in filePairs:
+            remove_test_files(filePair)
+    else:
+        assert isinstance(filePairs, tuple) and len(filePairs) == 2
+        os.unlink(filePairs[1])
 
 def run_suite(suite, results):
     results.append(suite.run())
