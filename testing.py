@@ -14,7 +14,7 @@ from util.type import type_check
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
-MULTITHREADED = False
+MULTITHREADED = True
 
 # Prefixes of symbol names to use for defining test cases in a test module.
 # Symbols matching these prefixes are taken up as test cases.
@@ -446,7 +446,7 @@ def run_test_module(mod, suiteName, results):
         if not result: results.add_failure()
         else: results.add_success()
 
-def run_tests(suiteName, moduleMap, copyFromToFilePairs=None):
+def run_tests(suiteName, moduleMap):
     '''Run a set of test modules and print cumulative results.
 
     This function is the entry point to be called from __init__.py in the
@@ -477,9 +477,6 @@ def run_tests(suiteName, moduleMap, copyFromToFilePairs=None):
     redirect_lock.release()
     threads = []
 
-    if copyFromToFilePairs is not None:
-        copy_test_files(copyFromToFilePairs)
-
     for modName, mod in moduleMap.items():
         if MULTITHREADED:
             # Run test modules in parallel. (Individual tests within a
@@ -495,9 +492,6 @@ def run_tests(suiteName, moduleMap, copyFromToFilePairs=None):
 
     for thread in threads:
         thread.join()
-
-    if copyFromToFilePairs is not None:
-        remove_test_files(copyFromToFilePairs)
 
     results.print()
 
