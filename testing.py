@@ -1,10 +1,14 @@
 '''Utility functions and classes to support automated testing'''
 
 import sys
+import json
 import os
+import random
 import shutil
 import subprocess
+import tempfile
 import traceback
+from types import ModuleType
 from threading import Thread, Condition, RLock
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
@@ -28,10 +32,17 @@ SUBPROCESS_CODE_PREFIX = "code_"
 TEST_OUTPUT_PREFIX = "out_"
 TEST_ERROR_PREFIX = "err_"
 
+# This string, unique to the top-level testing script, can be
+# used to, e.g., make a writable copy of a static file that will be
+# modified in the course of testing.
+TESTING_TOKEN = "_test%d" % os.getpid()
+
 # Thread
 redirect = None
 # Thread lock for coordinating
 redirect_lock = RLock()
+# Lock when updating environment variables
+environ_lock = RLock()
 
 class TestResults:
     def __init__(self, suiteName):
@@ -72,7 +83,7 @@ class Grep:
 
 def summarize_results(name, *results):
     '''Produce a summary TestResults object from the given results
-    
+
     :param name: a descriptive name for the summary results
     :param results: TestResults objects to be summarized
     :return: a summary TestResults object
@@ -144,9 +155,10 @@ def init_testing():
     parser = OptionParser(usage="python3 -m [MODULE].test [-g]")
     parser.add_option("-g", "--debug", action="store_true", dest="debug",
                   help="debug information from failed tests")
-    options, args = parser.parse_args() 
+    options, args = parser.parse_args()
     if options.debug:
         set_debug(True)
+
 
 def init_stubs(stubs=None):
     # Install stubs/mocks
@@ -339,7 +351,7 @@ def run_subprocess(mod, testName):
     if get_debug(): args.append("-g")
 
     dbg("Running subprocess: '%s'" % "' '".join(args))
-    processResult = subprocess.run(args, capture_output=True)
+    processResult = subprocess.run(args, capture_output=True, env=os.environ)
 
     return check_process_result(
         mod,
@@ -368,7 +380,7 @@ def run_batch(mod, testName):
 
     dbg("Running batch process: '%s'" % "' '".join(args))
 
-    processResult = subprocess.run(args, capture_output=True, input=commands)
+    processResult = subprocess.run(args, capture_output=True, input=commands, env=os.environ)
 
     return check_process_result(
         mod,
@@ -406,7 +418,7 @@ def redirect_output():
     global redirect, redirect_lock
     redirect_lock.acquire()
     redirect = Redirect()
- 
+
 def restore_output():
     global redirect, redirect_lock
     assert redirect is not None
@@ -497,27 +509,82 @@ def run_tests(suiteName, moduleMap):
 
     return results
 
-def copy_test_files(filePairs):
-    if isinstance(filePairs, list):
-        for filePair in filePairs:
-            copy_test_files(filePair)
-    else:
-        assert isinstance(filePairs, tuple) and len(filePairs) == 2
-        shutil.copy(filePairs[0], filePairs[1])
-
-def remove_test_files(filePairs):
-    if get_debug():
-        return
-
-    if isinstance(filePairs, list):
-        for filePair in filePairs:
-            remove_test_files(filePair)
-    else:
-        assert isinstance(filePairs, tuple) and len(filePairs) == 2
-        os.unlink(filePairs[1])
-
 def run_suite(suite, results):
     results.append(suite.run())
+
+def add_paths_to_set(module, pathOrPaths, theList):
+    dbg("PATH: %r, MODULEPATH: %r" % (pathOrPaths, module.__file__))
+    if isinstance(pathOrPaths, str):
+        path = pathOrPaths
+        if not os.path.isabs(path):
+            path = os.path.join(os.path.dirname(module.__file__), path)
+        theList.add(os.path.abspath(path))
+    elif isinstance(pathOrPaths, list):
+        for path in pathOrPaths:
+            add_paths_to_set(module, path, theList)
+    else:
+        raise ValueError("Unexpected value type for paths: %r"
+            % type(pathOrPaths))
+
+def load_static_test_files_from_suite(suite, uniqueFiles):
+    if "test_files" in vars(suite):
+        filesToCopy = suite.__dict__["test_files"]
+        dbg("FILESTOCOPY: %r" % filesToCopy)
+        add_paths_to_set(suite, filesToCopy, uniqueFiles)
+
+def load_static_test_files(testsuites):
+    uniqueFiles = set()
+    if isinstance(testsuites, list):
+        for suite in testsuites:
+            load_static_test_files_from_suite(suite, uniqueFiles)
+    elif isinstance(testsuites, ModuleType):
+        load_static_test_files_from_suite(testsuites, uniqueFiles)
+    else:
+        raise ValueError("Unexpected value type for testsuite: %r"
+            % type(testsuites))
+
+    dbg("UNIQUEFILES: %r" % uniqueFiles)
+    return uniqueFiles
+
+def initialize_dynamic_test_files(staticTestFiles):
+    '''Copy files and set envvar to communicate path
+
+    :return: list of string file paths of dynamic test files
+    '''
+    environ_lock.acquire()
+    staticDynamicMap = json.loads(os.environ.get("TESTING_FILES", "{}"))
+    dbg("EXISTING STATICDYNAMICMAP: %r" % staticDynamicMap)
+    for staticFile in staticTestFiles:
+        base, ext = os.path.splitext(staticFile)
+        dynamicFile = "%s%s%s" % (base, TESTING_TOKEN, ext)
+        dynamicFile = os.path.join(
+            tempfile.gettempdir(),
+            "util.testing",
+            os.path.relpath(dynamicFile, '/'))
+
+        # May happen if two suites submit the same static file.
+        if staticFile in staticDynamicMap:
+            assert staticDynamicMap[staticFile] == dynamicFile
+            continue
+
+        os.makedirs(os.path.dirname(dynamicFile), exist_ok=True)
+        dbg("COPYING: %s => %s" % (staticFile, dynamicFile))
+        shutil.copy(staticFile, dynamicFile)
+        staticDynamicMap[staticFile] = dynamicFile
+
+    # This will guide in-process testing and will be propagated to subprocesses.
+    os.environ["TESTING_FILES"] = json.dumps(staticDynamicMap)
+    environ_lock.release()
+    return staticDynamicMap.values()
+
+def clean_dynamic_test_files(dynamicTestFiles):
+    '''Remove dynamically-created test files'''
+    dbg("IN CLEAN DYNAMIC TEST FILES: %r" % dynamicTestFiles)
+    if not get_debug():
+        for testFile in dynamicTestFiles:
+            os.unlink(testFile)
+    if "TESTING_FILES" in os.environ:
+        del os.environ["TESTING_FILES"]
 
 def run_test_suites(packageName, testsuites):
     '''Run a collection of testsuite modules and summarize results
@@ -542,7 +609,11 @@ def run_test_suites(packageName, testsuites):
     results = []
     threads = []
     if type(testsuites) is dict:
-        testsuites = testsuites.values()
+        testsuites = list(testsuites.values())
+
+    staticTestFiles = load_static_test_files(testsuites)
+    dynamicTestFiles = initialize_dynamic_test_files(staticTestFiles)
+
     for suite in testsuites:
         if MULTITHREADED:
             t = Thread(
@@ -574,6 +645,14 @@ def run_main_suite():
     The process is terminated after completion.
     '''
     mainmod = sys.modules["__main__"]
+
+    staticTestFiles = load_static_test_files(mainmod)
+    dynamicTestFiles = initialize_dynamic_test_files(staticTestFiles)
+
     init_testing()
-    sys.exit(mainmod.run().code)
+    result = mainmod.run()
+
+    clean_dynamic_test_files(dynamicTestFiles)
+
+    sys.exit(result.code)
 
