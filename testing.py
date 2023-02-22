@@ -14,6 +14,7 @@ from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
+from util.testutil import Grep
 from util.type import type_check
 
 # Toggle parallel running of test modules. Test cases within a module are
@@ -73,13 +74,6 @@ class TestResults:
         else:
             print("%s, all successful" % initial)
         redirect_lock.release()
-
-# Wrap expected output in this class to search for the term in the output rather
-# than matching the entire string.
-class Grep:
-    def __init__(self, search):
-        # String to search for
-        self.search = search
 
 def summarize_results(name, *results):
     '''Produce a summary TestResults object from the given results
@@ -168,33 +162,91 @@ def init_stubs(stubs=None):
         for stub in stubs:
             stub.use_stubs()
 
+def print_expected_actual_mismatch(
+        testId,
+        expected,
+        actual,
+        expectedPrompt="Expected:",
+        actualPrompt="Actual:"):
+    expectedHasNewline = expected is not None and expected.find("\n") > -1
+    actualHasNewline = actual is not None and actual.find("\n") > -1
+    if expectedHasNewline or actualHasNewline:
+        # When values that contain newlines are involved, it looks better and
+        # makes it easier to compare to ensure both values have an initial
+        # newline.
+        if expected is not None and len(expected) > 0 and expected[0] != "\n":
+            expected = "\n%s" % expected
+        if actual is not None and len(actual) > 0 and actual[0] != "\n":
+            actual = "\n%s" % actual
+    else:
+        # Add a space for looks
+        if expected is not None and actual is not None:
+            alignRight = max(len(expectedPrompt), len(actualPrompt))
+            while len(expectedPrompt) < alignRight:
+                expectedPrompt = " %s" % expectedPrompt
+            while len(actualPrompt) < alignRight:
+                actualPrompt = " %s" % actualPrompt
+        expectedPrompt = "%s " % expectedPrompt
+        actualPrompt = "%s " % actualPrompt
+
+    expectedDisplay = '' if expected is None else "%s%s" % (
+        expectedPrompt, expected)
+    actualDisplay = '' if actual is None else "%s%s" % (actualPrompt, actual)
+
+    print_error("%s\n%s\n%s"
+        % (testId, expectedDisplay, actualDisplay))
+
 def check_code(mod, testName, expectedVarname, code):
     result = True
+    testId = get_test_identifier(mod, testName)
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if code != expectedValue:
-            print_error("%s/%s\nExpected return code: %r\n  Actual return code: %r"
-                % (mod.__name__, testName, expectedValue, code))
+            print_expected_actual_mismatch(
+                testId,
+                "%r" % expectedValue,
+                "%r" % code,
+                expectedPrompt="Expected return code:",
+                actualPrompt="Actual return code:")
             result = False
     elif code != 0:
         result = False
-        print_error("Unexpected nonzero return code: \"%s\"" % code)
+        # Got output when none was expected
+        print_expected_actual_mismatch(
+            testId,
+            None,
+            str(code),
+            actualPrompt="Unexpected nonzero return code:")
     return result
 
 def check_result(mod, testName, expectedVarname, testResult):
     checkResult = True
+    testId = get_test_identifier(mod, testName)
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if testResult != expectedValue:
-            print_error("%s/%s\nExpected result: %r\n  Actual result: %r"
-                % (mod.__name__, testName, expectedValue, testResult))
+            print_expected_actual_mismatch(
+                testId,
+                "%r" % expectedValue,
+                "%r" % testResult,
+                expectedPrompt="Expected result:",
+                actualPrompt="Actual result:")
             checkResult = False
     elif not testResult:
-        print_error("%s/%s: falsy result: %r" % (mod.__name__, testName, testResult))
+        print_expected_actual_mismatch(
+            testId,
+            None,
+            "%r" % testResult,
+            actualPrompt="False result:")
+        print_error("%s: falsy result: %r" % (testId, testResult))
         checkResult = False
     return checkResult
 
+def get_test_identifier(mod, testName):
+    return "%s/%s" % (mod.__name__, testName)
+
 def check_output(mod, testName, expectedVarname, output, streamName):
+    testId = get_test_identifier(mod, testName)
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
 
@@ -212,8 +264,12 @@ def check_output(mod, testName, expectedVarname, output, streamName):
             result = output.find(searchVal) >= 0
 
             if not result:
-                print_error("%s/%s\nExpected: %s\n  Actual: %s"
-                    % (mod.__name__, testName, searchVal, output))
+                print_expected_actual_mismatch(
+                    testId,
+                    searchVal,
+                    output,
+                    expectedPrompt="Expected %s substring:" % streamName,
+                    actualPrompt="Actual %s output:" % streamName)
         else:
             # Compare to the exact output (possibly with `TEST_DIR` replaced)
             idVariant = lambda out: out
@@ -240,16 +296,23 @@ def check_output(mod, testName, expectedVarname, output, streamName):
                     break
 
             if not result:
-                print_error("%s/%s\nExpected: %s\n  Actual: %s"
-                    % (mod.__name__, testName, expectedValue, output))
+                print_expected_actual_mismatch(
+                    testId,
+                    expectedValue,
+                    output,
+                    expectedPrompt="Expected %s output:" % streamName,
+                    actualPrompt="Actual %s output:" % streamName)
 
     elif len(output) == 0:
         # Checks out ok: no output and no expected output
         result = True
     else:
         # Got output when none was expected
-        print_error("%s/%s:\nUnexpected %s output: \"%s\""
-            % (mod.__name__, testName, streamName, output))
+        print_expected_actual_mismatch(
+            testId,
+            None,
+            output,
+            actualPrompt="Unexpected %s output:" % streamName)
         result = False
 
     return result

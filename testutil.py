@@ -6,8 +6,19 @@ cause a circular dependency.
 import os
 import json
 import traceback
+import random
 
 from util.msg import warn, dbg
+
+def get_test_token():
+    return "%d" % random.randrange(10000000)
+
+# Wrap expected output in this class to search for the term in the output rather
+# than matching the entire string.
+class Grep:
+    def __init__(self, search):
+        # String to search for
+        self.search = search
 
 def load_test_filepath(staticFile):
     '''Replace the path with the temporary path that was created for testing.

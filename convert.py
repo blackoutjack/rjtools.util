@@ -82,7 +82,7 @@ def parse_numeric(inputStr):
             # Already found numeric data, so done when we encounter nonnumeric
             remaining = inputStr[i:]
             break
-            
+
     if wholeNumberText == "":
         warn("No numeric data found: %s" % inputStr)
         return 0, remaining
@@ -142,4 +142,4 @@ def amount_to_grams(amount, indent=""):
         else:
             raise TypeError("Unhandled units in '%s': %s" % (amount, units))
     return total
-    
+
