@@ -1,5 +1,5 @@
 
-from util.testing import init_stubs, run_tests
+from util.testing import init_stubs, run_modules
 from util import fs
 
 def run():
@@ -10,5 +10,5 @@ def run():
 
     init_stubs(fs)
 
-    return run_tests("util", locals())
+    return run_modules("util", locals())
 

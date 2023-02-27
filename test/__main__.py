@@ -1,6 +1,6 @@
 
-from util.testing import run_main_suite
+from util.testing import run_suite
 from . import run
 
-run_main_suite()
+run_suite()
 

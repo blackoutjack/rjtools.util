@@ -474,107 +474,6 @@ def print_pass(suiteName, modName, testName):
 def print_fail(suiteName, modName, testName):
     print("%s/%s.%s: FAIL" % (suiteName, modName, testName))
 
-def wait_condition():
-    return redirect is None
-
-def redirect_output():
-    global redirect, redirect_lock
-    redirect_lock.acquire()
-    redirect = Redirect()
-
-def restore_output():
-    global redirect, redirect_lock
-    assert redirect is not None
-
-    redirect.restore()
-    out, errout = redirect.get_output()
-    redirect = None
-    redirect_lock.release()
-
-    return out, errout
-
-def run_test_module(mod, suiteName, results):
-    '''
-    Invoke all tests in a module and print individual results.
-
-    This function is the unit of parallelism. Anything called from here should
-    lock or otherwise take care before accessing shared data or resources.
-
-    Individual tests within a module run serially to allow for intramodule data
-    dependency.
-    :param mod: Module, object representing the test module
-    :param suiteName: string, name of the suite of which this module is part
-    :param results: TestResults, an object to collect detailed test outcomes
-    '''
-    symNames = vars(mod)
-    for symName in symNames:
-        if symName.startswith(INPROCESS_TEST_PREFIX):
-            result = run_test(mod, symName)
-        elif symName.startswith(SUBPROCESS_TEST_PREFIX):
-            result = run_subprocess(mod, symName)
-        elif symName.startswith(BATCH_TEST_PREFIX):
-            result = run_batch(mod, symName)
-        else:
-            continue
-
-        print_result(suiteName, mod.__name__, symName, result)
-        if not result: results.add_failure()
-        else: results.add_success()
-
-def run_tests(suiteName, moduleMap):
-    '''Run a set of test modules and print cumulative results.
-
-    This function is the entry point to be called from __init__.py in the
-    package directory defining a suite of test modules. Typical boilerplate is:
-
-        from util.testing import run_tests
-
-        def run():
-            from . import mytestmodule
-            from . import anothermodule
-
-            return run_tests("suitename", locals())
-
-    which calls this function to run the `mytestmodule` and `anothermodule` test
-    modules. The grouping of modules is called "suitename" in reporting.
-    :param suiteName: name of this suite of tests, for summary display purposes
-    :param moduleMap: map of module names to the module object
-    :param copyTmpFiles: list of tuples representing (static, dynamic) file
-        paths, where static is copied to dynamic before testing, and dynamic is
-        removed after testing (if debug is not enabled)
-    :return: a TestResults object summarizing the results from the modules
-    '''
-    results = TestResults(suiteName)
-
-    # Producing output needs the lock to ensure redirection isn't in effect
-    redirect_lock.acquire()
-    print("%s: running tests" % suiteName)
-    redirect_lock.release()
-    threads = []
-
-    for modName, mod in moduleMap.items():
-        if MULTITHREADED:
-            # Run test modules in parallel. (Individual tests within a
-            # module run serially to allow for intramodule data dependency).
-            t = Thread(
-                name=modName,
-                target=run_test_module,
-                args=[mod, suiteName, results])
-            threads.append(t)
-            t.start()
-        else:
-            run_test_module(mod, suiteName, results)
-
-    for thread in threads:
-        thread.join()
-
-    results.print()
-
-    return results
-
-def run_suite(suite, results):
-    results.append(suite.run())
-
 def add_paths_to_set(module, pathOrPaths, theList):
     dbg("PATH: %r, MODULEPATH: %r" % (pathOrPaths, module.__file__))
     if isinstance(pathOrPaths, str):
@@ -603,7 +502,7 @@ def load_static_test_files(testsuites):
     elif isinstance(testsuites, ModuleType):
         load_static_test_files_from_suite(testsuites, uniqueFiles)
     else:
-        raise ValueError("Unexpected value type for testsuite: %r"
+        raise ValueError("Unexpected value type for test suite: %r"
             % type(testsuites))
 
     dbg("UNIQUEFILES: %r" % uniqueFiles)
@@ -625,7 +524,7 @@ def initialize_dynamic_test_files(staticTestFiles):
             "util.testing",
             os.path.relpath(dynamicFile, '/'))
 
-        # May happen if two suites submit the same static file.
+        # May happen if two packages submit the same static file.
         if staticFile in staticDynamicMap:
             assert staticDynamicMap[staticFile] == dynamicFile
             continue
@@ -649,62 +548,163 @@ def clean_dynamic_test_files(dynamicTestFiles):
     if "TESTING_FILES" in os.environ:
         del os.environ["TESTING_FILES"]
 
-def run_test_suites(packageName, testsuites):
-    '''Run a collection of testsuite modules and summarize results
+def wait_condition():
+    return redirect is None
 
-    This function is the entrypoint for a test package to invoke test suites it
-    contains, via the package's __init__.py file. Typical boilerplate is:
+def redirect_output():
+    global redirect, redirect_lock
+    redirect_lock.acquire()
+    redirect = Redirect()
 
-        from util.testing import run_test_suites
+def restore_output():
+    global redirect, redirect_lock
+    assert redirect is not None
+
+    redirect.restore()
+    out, errout = redirect.get_output()
+    redirect = None
+    redirect_lock.release()
+
+    return out, errout
+
+def run_module(mod, packageName, results):
+    '''
+    Invoke all tests in a module and print individual results.
+
+    This function is the unit of parallelism. Anything called from here should
+    lock or otherwise take care before accessing shared data or resources.
+
+    Individual tests within a module run serially to allow for intramodule data
+    dependency.
+    :param mod: Module, object representing the test module
+    :param packageName: string, name of the package of which this module is part
+    :param results: TestResults, an object to collect detailed test outcomes
+    '''
+    symNames = vars(mod)
+    for symName in symNames:
+        if symName.startswith(INPROCESS_TEST_PREFIX):
+            result = run_test(mod, symName)
+        elif symName.startswith(SUBPROCESS_TEST_PREFIX):
+            result = run_subprocess(mod, symName)
+        elif symName.startswith(BATCH_TEST_PREFIX):
+            result = run_batch(mod, symName)
+        else:
+            continue
+
+        print_result(packageName, mod.__name__, symName, result)
+        if not result: results.add_failure()
+        else: results.add_success()
+
+def run_modules(packageName, moduleMap):
+    '''Run a set of test modules and print cumulative results.
+
+    This function is the entry point to be called from __init__.py in the
+    package directory defining a suite of test modules. Typical boilerplate is:
+
+        from util.testing import run_modules
+
+        def run():
+            from . import mytestmodule
+            from . import anothermodule
+
+            return run_modules("package name", locals())
+
+    which calls this function to run the `mytestmodule` and `anothermodule` test
+    modules. The grouping of modules is called "suitename" in reporting.
+    :param packageName: name of the test package, for summary display purposes
+    :param moduleMap: map of module name to the module object
+    :return: a TestResults object summarizing the results from the modules
+    '''
+    results = TestResults(packageName)
+
+    # Producing output needs the lock to ensure redirection isn't in effect
+    redirect_lock.acquire()
+    print("%s: running tests" % packageName)
+    redirect_lock.release()
+    threads = []
+
+    for modName, mod in moduleMap.items():
+        if MULTITHREADED:
+            # Run test modules in parallel. (Individual tests within a
+            # module run serially to allow for intramodule data dependency).
+            t = Thread(
+                name=modName,
+                target=run_module,
+                args=[mod, packageName, results])
+            threads.append(t)
+            t.start()
+        else:
+            run_module(mod, packageName, results)
+
+    for thread in threads:
+        thread.join()
+
+    results.print()
+
+    return results
+
+def run_package(package, results):
+    results.append(package.run())
+
+def run_packages(suiteName, packageMap):
+    '''Run a collection of test packages typically corresponding to an app.
+
+    The packages correspond to Python packages, and are comprised of test
+    modules corresponding to Python modules.
+
+    This function is the entrypoint for a test suite to invoke test packages
+        it contains, via the package's __init__.py file. Typical boilerplate is:
+
+        from util.testing import run_packages
 
         def run():
             from . import unit
             from . import user
             from . import batch
 
-            return run_test_suites("shrem", locals())
+            return run_packages("suite name", locals())
 
-    :param packageName: descriptive name of the collection of testsuites
-    :param testsuites: map or list containing modules representing testsuites;
-        supports list for manual listing, and map to support passing `locals()`
-    :return: TestResults object summarizing the testsuites that were run
+    :param suiteName: descriptive name of test suite containing these packages
+    :param packageMap: map containing package objects (of type
+        ModuleType) representing test packages; supports list for manual
+        listing, and map to support passing `locals()`
+    :return: TestResults object summarizing the test packages that were run
     '''
     results = []
     threads = []
-    if type(testsuites) is dict:
-        testsuites = list(testsuites.values())
 
-    staticTestFiles = load_static_test_files(testsuites)
+    staticTestFiles = load_static_test_files(list(packageMap.values()))
     dynamicTestFiles = initialize_dynamic_test_files(staticTestFiles)
 
-    for suite in testsuites:
+    for packageName, package in packageMap.items():
         if MULTITHREADED:
             t = Thread(
                 name=packageName,
-                target=run_suite,
-                args=[suite, results])
+                target=run_package,
+                args=[package, results])
             threads.append(t)
             t.start()
         else:
-            run_suite(suite, results)
+            run_package(package, results)
 
     for thread in threads:
         thread.join()
 
-    summary = summarize_results(packageName, *results)
+    summary = summarize_results(suiteName, *results)
     summary.print()
     return summary
 
-def run_main_suite():
-    '''Encapsulates the boilerplate needed to run a testsuite from __main__.py
+def run_suite():
+    '''Encapsulates the boilerplate needed to run a test suite from __main__.py
 
-    For any testsuite, the following code is all that's needed in __main__.py:
+    For any test suite/package, the following code is all that's needed in
+    __main__.py:
 
-        from util.testing import run_main_suite
+        from util.testing import run_suite
         from . import run
-        run_main_suite()
+        run_suite()
 
-    Note that the testsuite must import the `run` method from __init__.py.
+    Note that the test suite must import the `run` method from __init__.py.
     The process is terminated after completion.
     '''
     mainmod = sys.modules["__main__"]
