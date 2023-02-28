@@ -12,6 +12,7 @@ from types import ModuleType
 from threading import Thread, Condition, RLock
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
+from queue import Queue
 
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.testutil import Grep
@@ -20,6 +21,10 @@ from util.type import type_check
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
 MULTITHREADED = True
+# Module threads run nested within a package thread, so these numbers multiply
+# to get the total max thread count.
+PACKAGE_THREAD_COUNT = 4
+MODULE_THREAD_COUNT = 4
 
 # Prefixes of symbol names to use for defining test cases in a test module.
 # Symbols matching these prefixes are taken up as test cases.
@@ -83,9 +88,14 @@ def summarize_results(name, *results):
     :return: a summary TestResults object
     '''
     summary = TestResults(name)
-    summary.total = sum([result.total for result in results])
-    summary.failures = sum([result.failures for result in results])
-    summary.code = max([result.code for result in results])
+    if len(results) == 0:
+        summary.total = 0
+        summary.failures = 0
+        summary.code = 0
+    else:
+        summary.total = sum([result.total for result in results])
+        summary.failures = sum([result.failures for result in results])
+        summary.code = max([result.code for result in results])
     return summary
 
 def cull_debug_lines(lines, std):
@@ -621,23 +631,34 @@ def run_modules(packageName, moduleMap):
     redirect_lock.acquire()
     print("%s: running tests" % packageName)
     redirect_lock.release()
-    threads = []
 
-    for modName, mod in moduleMap.items():
-        if MULTITHREADED:
+    if MULTITHREADED:
+        q = Queue()
+
+        def worker(pkgName, res):
+            while True:
+                mod = q.get()
+                run_module(mod, pkgName, res)
+                q.task_done()
+
+        for threadNum in range(MODULE_THREAD_COUNT):
             # Run test modules in parallel. (Individual tests within a
             # module run serially to allow for intramodule data dependency).
             t = Thread(
-                name=modName,
-                target=run_module,
-                args=[mod, packageName, results])
-            threads.append(t)
+                name="run_module%d" % threadNum,
+                target=worker,
+                args=[packageName, results])
+            t.daemon = True
             t.start()
-        else:
-            run_module(mod, packageName, results)
 
-    for thread in threads:
-        thread.join()
+        for testModule in moduleMap.values():
+            q.put(testModule)
+
+        q.join()
+
+    else:
+        for testModule in moduleMap.values():
+            run_module(testModule, packageName, results)
 
     results.print()
 
@@ -676,19 +697,30 @@ def run_packages(suiteName, packageMap):
     staticTestFiles = load_static_test_files(list(packageMap.values()))
     dynamicTestFiles = initialize_dynamic_test_files(staticTestFiles)
 
-    for packageName, package in packageMap.items():
-        if MULTITHREADED:
-            t = Thread(
-                name=packageName,
-                target=run_package,
-                args=[package, results])
-            threads.append(t)
-            t.start()
-        else:
-            run_package(package, results)
+    if MULTITHREADED:
+        q = Queue()
 
-    for thread in threads:
-        thread.join()
+        def worker(res):
+            pkg = q.get()
+            run_package(pkg, res)
+            q.task_done()
+
+        for threadNum in range(PACKAGE_THREAD_COUNT):
+            t = Thread(
+                name="run_package%d" % threadNum,
+                target=worker,
+                args=[results])
+            t.daemon = True
+            t.start()
+
+        for package in packageMap.values():
+            q.put(package)
+
+        q.join()
+
+    else:
+        for packageName, package in packageMap.items():
+            run_package(package, results)
 
     summary = summarize_results(suiteName, *results)
     summary.print()
