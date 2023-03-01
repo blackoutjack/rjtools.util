@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import traceback
 from types import ModuleType
+import threading
 from threading import Thread, Condition, RLock
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
@@ -51,8 +52,8 @@ redirect_lock = RLock()
 environ_lock = RLock()
 
 class TestResults:
-    def __init__(self, suiteName):
-        self.name = suiteName
+    def __init__(self, packageName):
+        self.name = packageName
         self.code = 0
         self.total = 0
         self.failures = 0
@@ -471,18 +472,18 @@ def print_error(msg):
     err(msg)
     redirect_lock.release()
 
-def print_result(suiteName, modName, testName, result):
+def print_result(packageName, modName, testName, result):
     # Producing output needs the lock to ensure redirection isn't in effect
     redirect_lock.acquire()
-    if result: print_pass(suiteName, modName, testName)
-    else: print_fail(suiteName, modName, testName)
+    if result: print_pass(packageName, modName, testName)
+    else: print_fail(packageName, modName, testName)
     redirect_lock.release()
 
-def print_pass(suiteName, modName, testName):
-    print("%s/%s.%s: pass" % (suiteName, modName, testName))
+def print_pass(packageName, modName, testName):
+    print("%s/%s.%s: pass" % (packageName, modName, testName))
 
-def print_fail(suiteName, modName, testName):
-    print("%s/%s.%s: FAIL" % (suiteName, modName, testName))
+def print_fail(packageName, modName, testName):
+    print("%s/%s.%s: FAIL" % (packageName, modName, testName))
 
 def add_paths_to_set(module, pathOrPaths, theList):
     dbg("PATH: %r, MODULEPATH: %r" % (pathOrPaths, module.__file__))
@@ -498,22 +499,22 @@ def add_paths_to_set(module, pathOrPaths, theList):
         raise ValueError("Unexpected value type for paths: %r"
             % type(pathOrPaths))
 
-def load_static_test_files_from_suite(suite, uniqueFiles):
-    if "test_files" in vars(suite):
-        filesToCopy = suite.__dict__["test_files"]
+def load_static_test_files_from_package(package, uniqueFiles):
+    if "test_files" in vars(package):
+        filesToCopy = package.__dict__["test_files"]
         dbg("FILESTOCOPY: %r" % filesToCopy)
-        add_paths_to_set(suite, filesToCopy, uniqueFiles)
+        add_paths_to_set(package, filesToCopy, uniqueFiles)
 
-def load_static_test_files(testsuites):
+def load_static_test_files(testPackages):
     uniqueFiles = set()
-    if isinstance(testsuites, list):
-        for suite in testsuites:
-            load_static_test_files_from_suite(suite, uniqueFiles)
-    elif isinstance(testsuites, ModuleType):
-        load_static_test_files_from_suite(testsuites, uniqueFiles)
+    if isinstance(testPackages, list):
+        for package in testPackages:
+            load_static_test_files_from_package(package, uniqueFiles)
+    elif isinstance(testPackages, ModuleType):
+        load_static_test_files_from_package(testPackages, uniqueFiles)
     else:
-        raise ValueError("Unexpected value type for test suite: %r"
-            % type(testsuites))
+        raise ValueError("Unexpected value type for test package: %r"
+            % type(testPackages))
 
     dbg("UNIQUEFILES: %r" % uniqueFiles)
     return uniqueFiles
@@ -633,6 +634,7 @@ def run_modules(packageName, moduleMap):
     redirect_lock.release()
 
     if MULTITHREADED:
+
         q = Queue()
 
         def worker(pkgName, res):
@@ -665,7 +667,18 @@ def run_modules(packageName, moduleMap):
     return results
 
 def run_package(package, results):
-    results.append(package.run())
+    try:
+        result = package.run()
+    except Exception as ex:
+        # Catch any problems that occur while loading the top-level code of a
+        # test module.
+        result = TestResults("")
+        result.add_failure()
+        print_error("Exception occurred while loading modules in package %s: %s" % (package.__name__, str(ex)))
+        print_exception(ex)
+
+    results.append(result)
+
 
 def run_packages(suiteName, packageMap):
     '''Run a collection of test packages typically corresponding to an app.
