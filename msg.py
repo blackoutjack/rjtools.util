@@ -13,18 +13,22 @@ def set_debug(val):
 def get_debug():
     return DEBUG
 
-def dbg(msg):
+def dbg(msg, target=None):
     if DEBUG:
-        print("DEBUG: %s" % msg)
+        if target is None: target = sys.stdout
+        print("DEBUG: %s" % msg, file=target)
 
-def info(msg, indent=""):
-    print("%sINFO: %s" % (indent, msg))
+def info(msg, indent="", target=None):
+    if target is None: target = sys.stdout
+    print("%sINFO: %s" % (indent, msg), file=target)
 
-def warn(msg, indent=""):
-    print("%sWARNING: %s" % (indent, msg), file=sys.stderr)
+def warn(msg, indent="", target=None):
+    if target is None: target = sys.stderr
+    print("%sWARNING: %s" % (indent, msg), file=target)
 
-def err(msg, indent=""):
-    print("%sERROR: %s" % (indent, msg), file=sys.stderr)
+def err(msg, indent="", target=None):
+    if target is None: target = sys.stderr
+    print("%sERROR: %s" % (indent, msg), file=target)
 
 def s_if_plural(count):
     return "" if count == 1 else "s"

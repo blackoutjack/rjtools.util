@@ -7,6 +7,7 @@ def run():
     from . import type_check
     from . import files
     from . import testing
+    from . import log
 
     init_stubs(fs)
 
