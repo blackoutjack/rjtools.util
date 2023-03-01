@@ -3,6 +3,7 @@ import sys
 
 from util.msg import info, warn, err, dbg
 from util.type import type_check
+from util import fs
 
 
 class Logger:
@@ -19,26 +20,31 @@ class Logger:
         self.stderrFiles=stderrFiles
         self.debugFiles=debugFiles
 
+    def _load_files(self, filepaths):
+        for filepath in filepaths:
+            with fs.binary_open(filepath) as fl:
+                yield fl
+
     def info(self, msg, indent=""):
-        for target in self.stdoutFiles:
+        for target in self._load_files(self.stdoutFiles):
             info(msg, indent=indent, target=target)
         if not self.suppress_standard:
             info(msg, indent=indent)
 
     def dbg(self, msg):
-        for target in self.stdoutFiles:
+        for target in self._load_files(self.stdoutFiles):
             dbg(msg, target=target)
         if not self.suppress_standard:
             dbg(msg)
 
     def warn(self, msg, indent=""):
-        for target in self.stderrFiles:
+        for target in self._load_files(self.stderrFiles):
             warn(msg, indent=indent, target=target)
         if not self.suppress_standard:
             warn(msg, indent=indent)
 
     def err(self, msg, indent=""):
-        for target in self.stderrFiles:
+        for target in self._load_files(self.stderrFiles):
             err(msg, indent=indent, target=target)
         if not self.suppress_standard:
             err(msg, indent=indent)
