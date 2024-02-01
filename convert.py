@@ -131,7 +131,7 @@ def amount_to_grams(amount, indent=""):
         amounti, text = parse_numeric(text)
         units, text = parse_nonnumeric(text)
         if units == "":
-            warn("Units not specified, assuming grams: %s" % amount, indent)
+            warn("Units not specified in '%s', assuming grams" % amount, indent)
             total += amounti
         elif units == "g":
             total += amounti
@@ -140,6 +140,6 @@ def amount_to_grams(amount, indent=""):
         elif units == "oz":
             total += amounti * 28.34952
         else:
-            raise TypeError("Unhandled units in '%s': %s" % (amount, units))
+            raise TypeError("Unhandled units in '%s': '%s'" % (amount, units))
     return total
 
