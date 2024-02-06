@@ -131,8 +131,10 @@ def amount_to_grams(amount, indent=""):
         amounti, text = parse_numeric(text)
         units, text = parse_nonnumeric(text)
         if units == "":
-            warn("Units not specified in '%s', assuming grams" % amount, indent)
-            total += amounti
+            # "0" can be interpreted as 0 grams without warning
+            if amount != "0":
+                warn("Units not specified in '%s', assuming grams" % amount, indent)
+                total += amounti
         elif units == "g":
             total += amounti
         elif units == "lb" or units == "#":
