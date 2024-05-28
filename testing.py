@@ -21,7 +21,7 @@ from util.type import type_check
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
-MULTITHREADED = True
+MULTITHREADED = False
 # Module threads run nested within a package thread, so these numbers multiply
 # to get the total max thread count.
 PACKAGE_THREAD_COUNT = 4
