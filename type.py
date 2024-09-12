@@ -1,5 +1,12 @@
 
 
+'''Emptiness test meant for possibly-None strings'''
+def empty(value):
+    return value in [None, '']
+
+def nonempty(value):
+    return not empty(value)
+
 def type_error(varname, actual_typename, expected_typename):
     raise ValueError("Unexpected type for '%s': %s (expected %s)"
             % (varname, actual_typename, expected_typename))
