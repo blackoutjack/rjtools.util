@@ -2,7 +2,7 @@
 
 '''Emptiness test meant for possibly-None strings'''
 def empty(value):
-    return value in [None, '']
+    return value in [None, '', []]
 
 def nonempty(value):
     return not empty(value)
