@@ -6,6 +6,12 @@ import sys
 
 DEBUG = False
 
+MESSAGE_LOG = []
+
+STANDARD_OUTPUT = True
+
+ERROR_LOG = None
+
 def set_debug(val):
     global DEBUG
     DEBUG = val
@@ -13,22 +19,42 @@ def set_debug(val):
 def get_debug():
     return DEBUG
 
+def get_message_log():
+    global MESSAGE_LOG
+    return MESSAGE_LOG
+
+def disable_standard_output():
+    global STANDARD_OUTPUT
+    STANDARD_OUTPUT = False
+
+def enable_standard_output():
+    global STANDARD_OUTPUT
+    STANDARD_OUTPUT = True
+
 def dbg(msg, target=None):
     if DEBUG:
         if target is None: target = sys.stdout
-        print("DEBUG: %s" % msg, file=target)
+        if STANDARD_OUTPUT:
+            print("DEBUG: %s" % msg, file=target)
+        MESSAGE_LOG.append({ "type": "debug", "message": msg })
 
 def info(msg, indent="", target=None):
     if target is None: target = sys.stdout
-    print("%sINFO: %s" % (indent, msg), file=target)
+    if STANDARD_OUTPUT:
+        print("%sINFO: %s" % (indent, msg), file=target)
+    MESSAGE_LOG.append({ "type": "info", "message": msg })
 
 def warn(msg, indent="", target=None):
     if target is None: target = sys.stderr
-    print("%sWARNING: %s" % (indent, msg), file=target)
+    if STANDARD_OUTPUT:
+        print("%sWARNING: %s" % (indent, msg), file=target)
+    MESSAGE_LOG.append({ "type": "warn", "message": msg })
 
 def err(msg, indent="", target=None):
     if target is None: target = sys.stderr
-    print("%sERROR: %s" % (indent, msg), file=target)
+    if STANDARD_OUTPUT:
+        print("%sERROR: %s" % (indent, msg), file=target)
+    MESSAGE_LOG.append({ "type": "error", "message": msg })
 
 def s_if_plural(count):
     return "" if count == 1 else "s"
