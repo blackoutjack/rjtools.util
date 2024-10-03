@@ -2,7 +2,7 @@
 # Utility functions for parsing string and converting values
 #
 
-from .msg import dbg, info, warn, err
+from .msg import dbg, info, warn, err, num
 import datetime
 
 def today_date():
@@ -144,4 +144,24 @@ def amount_to_grams(amount, indent=""):
         else:
             raise TypeError("Unhandled units in '%s': '%s'" % (amount, units))
     return total
+
+def parse_range(sheetRange):
+    rangeParts = sheetRange.split('!')
+    sheetName = rangeParts[0]
+    rangeStart, rangeEnd = rangeParts[1].split(":")
+    startColumn, startRow = parse_nonnumeric(rangeStart)
+    endColumn, endRow = parse_nonnumeric(rangeEnd)
+
+    startRow = int(startRow)
+    if endRow == '':
+        endRow = None
+    else:
+        endRow = int(endRow)
+
+    startColumn = num(startColumn)
+    endColumn = num(endColumn)
+
+    #dbg("%s:%r,%r,%r,%r" % (sheetName, startColumn, startRow, endColumn, endRow))
+
+    return sheetName, (startColumn, startRow), (endColumn, endRow)
 
