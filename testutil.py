@@ -9,6 +9,7 @@ import traceback
 import random
 
 from util.msg import warn, dbg
+from util.file import insert_suffix_into_filename
 
 def get_test_token():
     return "%d" % random.randrange(10000000)
@@ -20,7 +21,24 @@ class Grep:
         # String to search for
         self.search = search
 
-def load_test_url(staticURL):
+def _get_test_url_map():
+    try:
+        urlMapString = os.getenv("TESTING_URL_MIRROR_MAP")
+        if urlMapString is not None:
+            urlMap = json.loads(urlMapString)
+            return urlMap
+    except json.JSONDecodeError:
+        warn("Invalid JSON for testing URLs: %s" % os.getenv("TESTING_URL_MIRROR_MAP"))
+    return None
+
+def _is_mirrored_in(staticURL, urlMap):
+    return urlMap is not None and staticURL in urlMap
+
+def is_mirrored_for_test(staticURL):
+    urlMap = _get_test_url_map()
+    return _is_mirrored_in(staticURL, urlMap)
+
+def load_mirror_url(staticURL):
     '''Replace the path with the temporary path that was created for testing.
 
     Works in conjunction with util.testing:initialize_dynamic_test_files, which
@@ -30,16 +48,10 @@ def load_test_url(staticURL):
     :return: string, path of the dynamic file that can be modified during
         testing without changing the tracked static file
     '''
-    urlMap = {}
-    try:
-        urlMapString = os.getenv("TESTING_URL_MIRROR_MAP")
-        if urlMapString is not None:
-            urlMap = json.loads(urlMapString)
-    except json.JSONDecodeError:
-        warn("Invalid JSON for testing URLs: %s" % os.getenv("TESTING_URL_MIRROR_MAP"))
 
-    if staticURL in urlMap:
+    if is_mirrored_for_test(staticURL):
+        urlMap = _get_test_url_map()
         return urlMap[staticURL]
     else:
-        return staticURL
+        return insert_suffix_into_filename(staticURL, ".bak")
 
