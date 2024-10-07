@@ -23,7 +23,7 @@ class Grep:
 def load_test_filepath(staticFile):
     '''Replace the path with the temporary path that was created for testing.
 
-    Works in conjunction with util.testing:initialized_dynamic_test_files, which
+    Works in conjunction with util.testing:initialize_dynamic_test_files, which
     creates the dynamic files and communicates the location via envvar.
     :param staticFile: string, path of the static file that was copied by the
         testing infrastructure
