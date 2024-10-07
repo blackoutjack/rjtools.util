@@ -409,7 +409,7 @@ def check_process_result(mod, testName, testPrefix, processResult):
 
     return result
 
-def run_subprocess(mod, testName):
+def run_subprocess(mod, testName, commandPrefix=None):
     '''Run a test that specifies arguments to run a subprocess
 
     Triggered by setting a variable "run_*" in the test module to a list of
@@ -420,6 +420,10 @@ def run_subprocess(mod, testName):
     '''
     args = mod.__dict__[testName]
     type_check(args, type([]), testName)
+
+    if commandPrefix is not None:
+        type_check(commandPrefix, type([]), testName)
+        args = commandPrefix + args
 
     # Pass along debug option
     if get_debug(): args.append("-g")
@@ -433,7 +437,7 @@ def run_subprocess(mod, testName):
         SUBPROCESS_TEST_PREFIX,
         processResult)
 
-def run_batch(mod, testName):
+def run_batch(mod, testName, commandPrefix=None):
     '''Run a batch test that reads stdin to perform a series of operations
 
     Triggered by setting a variable "batch_*" in the test module to a list of
@@ -444,10 +448,26 @@ def run_batch(mod, testName):
     :return: boolean indicating whether the test passed
     '''
     values = mod.__dict__[testName]
-    type_check(values, type(([],"")), testName)
+    if type(values) is str:
+        # Specifying command arguments are optional, as long as there is
+        # something in commandPrefix.
+        type_check(commandPrefix, type([]), testName)
+        if len(commandPrefix) == 0:
+            err("Cannot run a batch command in test %s with no arguments" % testName)
+            return False
+        args = commandPrefix
+        commands = values
+    else:
+        type_check(values, type(([],"")), testName)
 
-    args = values[0]
-    commands = values[1].encode('utf-8')
+        args = values[0]
+        if commandPrefix is not None:
+            type_check(commandPrefix, type([]), testName)
+            args = commandPrefix + args
+
+        commands = values[1]
+
+    commands = commands.encode('utf-8')
 
     # Pass along debug option
     if get_debug(): args.append("-g")
@@ -500,8 +520,8 @@ def add_paths_to_set(module, pathOrPaths, theList):
             % type(pathOrPaths))
 
 def load_static_test_files_from_package(package, uniqueFiles):
-    if "test_files" in vars(package):
-        filesToCopy = package.__dict__["test_files"]
+    if "TEST_FILES" in vars(package):
+        filesToCopy = package.__dict__["TEST_FILES"]
         dbg("FILESTOCOPY: %r" % filesToCopy)
         add_paths_to_set(package, filesToCopy, uniqueFiles)
 
@@ -525,7 +545,7 @@ def initialize_dynamic_test_files(staticTestFiles):
     :return: list of string file paths of dynamic test files
     '''
     environ_lock.acquire()
-    staticDynamicMap = json.loads(os.environ.get("TESTING_FILES", "{}"))
+    staticDynamicMap = json.loads(os.environ.get("TESTING_URL_MIRROR_MAP", "{}"))
     dbg("EXISTING STATICDYNAMICMAP: %r" % staticDynamicMap)
     for staticFile in staticTestFiles:
         base, ext = os.path.splitext(staticFile)
@@ -541,12 +561,12 @@ def initialize_dynamic_test_files(staticTestFiles):
             continue
 
         os.makedirs(os.path.dirname(dynamicFile), exist_ok=True)
-        dbg("COPYING: %s => %s" % (staticFile, dynamicFile))
+        info("Creating mirror file: %s => %s" % (staticFile, dynamicFile))
         shutil.copy(staticFile, dynamicFile)
         staticDynamicMap[staticFile] = dynamicFile
 
     # This will guide in-process testing and will be propagated to subprocesses.
-    os.environ["TESTING_FILES"] = json.dumps(staticDynamicMap)
+    os.environ["TESTING_URL_MIRROR_MAP"] = json.dumps(staticDynamicMap)
     environ_lock.release()
     return staticDynamicMap.values()
 
@@ -556,8 +576,8 @@ def clean_dynamic_test_files(dynamicTestFiles):
     if not get_debug():
         for testFile in dynamicTestFiles:
             os.unlink(testFile)
-    if "TESTING_FILES" in os.environ:
-        del os.environ["TESTING_FILES"]
+    if "TESTING_URL_MIRROR_MAP" in os.environ:
+        del os.environ["TESTING_URL_MIRROR_MAP"]
 
 def wait_condition():
     return redirect is None
@@ -578,7 +598,7 @@ def restore_output():
 
     return out, errout
 
-def run_module(mod, packageName, results):
+def run_module(mod, packageName, results, commandPrefix=None):
     '''
     Invoke all tests in a module and print individual results.
 
@@ -596,9 +616,9 @@ def run_module(mod, packageName, results):
         if symName.startswith(INPROCESS_TEST_PREFIX):
             result = run_test(mod, symName)
         elif symName.startswith(SUBPROCESS_TEST_PREFIX):
-            result = run_subprocess(mod, symName)
+            result = run_subprocess(mod, symName, commandPrefix)
         elif symName.startswith(BATCH_TEST_PREFIX):
-            result = run_batch(mod, symName)
+            result = run_batch(mod, symName, commandPrefix)
         else:
             continue
 
@@ -606,7 +626,7 @@ def run_module(mod, packageName, results):
         if not result: results.add_failure()
         else: results.add_success()
 
-def run_modules(packageName, moduleMap):
+def run_modules(packageName, moduleMap, commandPrefix=None):
     '''Run a set of test modules and print cumulative results.
 
     This function is the entry point to be called from __init__.py in the
@@ -640,7 +660,7 @@ def run_modules(packageName, moduleMap):
         def worker(pkgName, res):
             while True:
                 mod = q.get()
-                run_module(mod, pkgName, res)
+                run_module(mod, pkgName, res, commandPrefix)
                 q.task_done()
 
         for threadNum in range(MODULE_THREAD_COUNT):
@@ -660,7 +680,7 @@ def run_modules(packageName, moduleMap):
 
     else:
         for testModule in moduleMap.values():
-            run_module(testModule, packageName, results)
+            run_module(testModule, packageName, results, commandPrefix)
 
     results.print()
 

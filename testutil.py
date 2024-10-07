@@ -20,26 +20,26 @@ class Grep:
         # String to search for
         self.search = search
 
-def load_test_filepath(staticFile):
+def load_test_url(staticURL):
     '''Replace the path with the temporary path that was created for testing.
 
     Works in conjunction with util.testing:initialize_dynamic_test_files, which
     creates the dynamic files and communicates the location via envvar.
-    :param staticFile: string, path of the static file that was copied by the
+    :param staticURL: string, path of the static file that was copied by the
         testing infrastructure
     :return: string, path of the dynamic file that can be modified during
         testing without changing the tracked static file
     '''
-    filemap = {}
+    urlMap = {}
     try:
-        filestring = os.getenv("TESTING_FILES")
-        if filestring is not None:
-            filemap = json.loads(filestring)
+        urlMapString = os.getenv("TESTING_URL_MIRROR_MAP")
+        if urlMapString is not None:
+            urlMap = json.loads(urlMapString)
     except json.JSONDecodeError:
-        warn("Invalid JSON for testing files: %s" % os.getenv("TESTING_FILES"))
+        warn("Invalid JSON for testing URLs: %s" % os.getenv("TESTING_URL_MIRROR_MAP"))
 
-    if staticFile in filemap:
-        return filemap[staticFile]
+    if staticURL in urlMap:
+        return urlMap[staticURL]
     else:
-        return staticFile
+        return staticURL
 
