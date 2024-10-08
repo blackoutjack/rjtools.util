@@ -6,7 +6,6 @@ import os
 import random
 import shutil
 import subprocess
-import tempfile
 import traceback
 from types import ModuleType
 import threading
@@ -18,6 +17,7 @@ from queue import Queue
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.testutil import Grep
 from util.type import type_check
+from util.file import create_temporary_file
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
@@ -546,14 +546,8 @@ def initialize_dynamic_test_files(staticTestFiles):
     '''
     environ_lock.acquire()
     staticDynamicMap = json.loads(os.environ.get("TESTING_URL_MIRROR_MAP", "{}"))
-    dbg("EXISTING STATICDYNAMICMAP: %r" % staticDynamicMap)
     for staticFile in staticTestFiles:
-        base, ext = os.path.splitext(staticFile)
-        dynamicFile = "%s%s%s" % (base, TESTING_TOKEN, ext)
-        dynamicFile = os.path.join(
-            tempfile.gettempdir(),
-            "util.testing",
-            os.path.relpath(dynamicFile, '/'))
+        dynamicFile = create_temporary_file(staticFile, "util.testing", TESTING_TOKEN)
 
         # May happen if two packages submit the same static file.
         if staticFile in staticDynamicMap:
