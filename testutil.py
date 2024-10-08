@@ -53,5 +53,5 @@ def load_mirror_url(staticURL):
         urlMap = _get_test_url_map()
         return urlMap[staticURL]
     else:
-        return insert_suffix_into_filename(staticURL, ".bak")
+        return insert_suffix_into_filename(staticURL, ".mirror")
 
