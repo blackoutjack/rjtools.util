@@ -7,6 +7,9 @@ import sys
 DEBUG = False
 
 MESSAGE_LOG = []
+INFO_LOG = []
+
+LOG_INFO_OUTPUT = True
 
 STANDARD_OUTPUT = True
 
@@ -20,12 +23,17 @@ def get_debug():
     return DEBUG
 
 def get_message_log():
-    global MESSAGE_LOG
+    global MESSAGE_LOG, LOG_INFO_OUTPUT
+    if LOG_INFO_OUTPUT: MESSAGE_LOG.append({ "type": "info", "message": "\n".join(INFO_LOG) })
     return MESSAGE_LOG
 
 def disable_standard_output():
     global STANDARD_OUTPUT
     STANDARD_OUTPUT = False
+
+def disable_info_logging():
+    global LOG_INFO_OUTPUT
+    LOG_INFO_OUTPUT = False
 
 def enable_standard_output():
     global STANDARD_OUTPUT
@@ -41,8 +49,10 @@ def dbg(msg, target=None):
 def info(msg, indent="", target=None):
     if target is None: target = sys.stdout
     if STANDARD_OUTPUT:
-        print("%sINFO: %s" % (indent, msg), file=target)
-    MESSAGE_LOG.append({ "type": "info", "message": msg })
+        print("%s%s" % (indent, msg), file=target)
+    if LOG_INFO_OUTPUT:
+        INFO_LOG.append(msg)
+        #MESSAGE_LOG.append({ "type": "info", "message": msg })
 
 def warn(msg, indent="", target=None):
     if target is None: target = sys.stderr
