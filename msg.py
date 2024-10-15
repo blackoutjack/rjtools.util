@@ -42,9 +42,14 @@ def enable_standard_output():
 def dbg(msg, target=None):
     if DEBUG:
         if target is None: target = sys.stdout
+        if type(msg) is str:
+            msgText = msg
+        else:
+            msgText = "%r" % msg
+
         if STANDARD_OUTPUT:
-            print("DEBUG: %s" % msg, file=target)
-        MESSAGE_LOG.append({ "type": "debug", "message": msg })
+            print("DEBUG: %s" % msgText, file=target)
+        MESSAGE_LOG.append({ "type": "debug", "message": msgText })
 
 def info(msg, indent="", target=None):
     if target is None: target = sys.stdout
