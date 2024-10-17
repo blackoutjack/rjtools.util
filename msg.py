@@ -22,6 +22,11 @@ def set_debug(val):
 def get_debug():
     return DEBUG
 
+def clear_message_log():
+    global MESSAGE_LOG, INFO_LOG
+    MESSAGE_LOG = []
+    INFO_LOG = []
+
 def get_message_log():
     global MESSAGE_LOG, LOG_INFO_OUTPUT
     if LOG_INFO_OUTPUT: MESSAGE_LOG.append({ "type": "info", "message": "\n".join(INFO_LOG) })
