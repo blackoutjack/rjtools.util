@@ -50,7 +50,7 @@ def dbg(msg, target=None):
         if type(msg) is str:
             msgText = msg
         else:
-            msgText = "%r" % msg
+            msgText = str(msg)
 
         if STANDARD_OUTPUT:
             print("DEBUG: %s" % msgText, file=target)
@@ -59,22 +59,22 @@ def dbg(msg, target=None):
 def info(msg, indent="", target=None):
     if target is None: target = sys.stdout
     if STANDARD_OUTPUT:
-        print("%s%s" % (indent, msg), file=target)
+        print("%s%s" % (indent, str(msg)), file=target)
     if LOG_INFO_OUTPUT:
-        INFO_LOG.append(msg)
-        #MESSAGE_LOG.append({ "type": "info", "message": msg })
+        INFO_LOG.append(str(msg))
+        #MESSAGE_LOG.append({ "type": "info", "message": str(msg) })
 
 def warn(msg, indent="", target=None):
     if target is None: target = sys.stderr
     if STANDARD_OUTPUT:
-        print("%sWARNING: %s" % (indent, msg), file=target)
-    MESSAGE_LOG.append({ "type": "warn", "message": msg })
+        print("%sWARNING: %s" % (indent, str(msg)), file=target)
+    MESSAGE_LOG.append({ "type": "warn", "message": str(msg) })
 
 def err(msg, indent="", target=None):
     if target is None: target = sys.stderr
     if STANDARD_OUTPUT:
-        print("%sERROR: %s" % (indent, msg), file=target)
-    MESSAGE_LOG.append({ "type": "error", "message": msg })
+        print("%sERROR: %s" % (indent, str(msg)), file=target)
+    MESSAGE_LOG.append({ "type": "error", "message": str(msg) })
 
 def s_if_plural(count):
     return "" if count == 1 else "s"
