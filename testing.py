@@ -4,7 +4,6 @@ import sys
 import json
 import os
 import random
-import shutil
 import subprocess
 import traceback
 from types import ModuleType
@@ -13,15 +12,15 @@ from threading import Thread, Condition, RLock
 from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 from queue import Queue
+from pathlib import Path
 
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.testutil import Grep
 from util.type import type_check
-from util.file import create_temporary_file
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
-MULTITHREADED = False
+MULTITHREADED = True
 # Module threads run nested within a package thread, so these numbers multiply
 # to get the total max thread count.
 PACKAGE_THREAD_COUNT = 4
@@ -48,8 +47,6 @@ TESTING_TOKEN = "_test%d" % os.getpid()
 redirect = None
 # Thread lock for coordinating
 redirect_lock = RLock()
-# Lock when updating environment variables
-environ_lock = RLock()
 
 class TestResults:
     def __init__(self, packageName):
@@ -204,6 +201,7 @@ def print_expected_actual_mismatch(
         expectedPrompt, expected)
     actualDisplay = '' if actual is None else "%s%s" % (actualPrompt, actual)
 
+    print_divider()
     print_error("%s\n%s\n%s"
         % (testId, expectedDisplay, actualDisplay))
 
@@ -213,6 +211,7 @@ def check_code(mod, testName, expectedVarname, code):
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if code != expectedValue:
+            print_divider()
             print_expected_actual_mismatch(
                 testId,
                 "%r" % expectedValue,
@@ -221,13 +220,14 @@ def check_code(mod, testName, expectedVarname, code):
                 actualPrompt="Actual return code:")
             result = False
     elif code != 0:
-        result = False
+        print_divider()
         # Got output when none was expected
         print_expected_actual_mismatch(
             testId,
             None,
             str(code),
             actualPrompt="Unexpected nonzero return code:")
+        result = False
     return result
 
 def check_result(mod, testName, expectedVarname, testResult):
@@ -236,6 +236,7 @@ def check_result(mod, testName, expectedVarname, testResult):
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if testResult != expectedValue:
+            print_divider()
             print_expected_actual_mismatch(
                 testId,
                 "%r" % expectedValue,
@@ -244,6 +245,7 @@ def check_result(mod, testName, expectedVarname, testResult):
                 actualPrompt="Actual result:")
             checkResult = False
     elif not testResult:
+        print_divider()
         print_expected_actual_mismatch(
             testId,
             None,
@@ -487,6 +489,11 @@ def print_exception(exception):
     traceback.print_exception(exception)
     redirect_lock.release()
 
+def print_divider():
+    redirect_lock.acquire()
+    info("===================================")
+    redirect_lock.release()
+
 def print_error(msg):
     redirect_lock.acquire()
     err(msg)
@@ -504,72 +511,52 @@ def print_pass(packageName, modName, testName):
 
 def print_fail(packageName, modName, testName):
     print("%s/%s.%s: FAIL" % (packageName, modName, testName))
+    print_divider()
 
-def add_paths_to_set(module, pathOrPaths, theList):
-    dbg("PATH: %r, MODULEPATH: %r" % (pathOrPaths, module.__file__))
-    if isinstance(pathOrPaths, str):
-        path = pathOrPaths
-        if not os.path.isabs(path):
-            path = os.path.join(os.path.dirname(module.__file__), path)
-        theList.add(os.path.abspath(path))
-    elif isinstance(pathOrPaths, list):
-        for path in pathOrPaths:
-            add_paths_to_set(module, path, theList)
-    else:
-        raise ValueError("Unexpected value type for paths: %r"
-            % type(pathOrPaths))
+def copy_store_to_mirror(sourceOption, targetOption):
+    venvActivate = os.path.join(Path.home(), ".venvs", "shrem", "bin", "activate")
+    shremDir = os.path.join(Path.home(), "lib", "shrem")
 
-def load_static_test_files_from_package(package, uniqueFiles):
-    if "TEST_FILES" in vars(package):
-        filesToCopy = package.__dict__["TEST_FILES"]
-        dbg("FILESTOCOPY: %r" % filesToCopy)
-        add_paths_to_set(package, filesToCopy, uniqueFiles)
+    # %%% Requires running with virtualenv already activated.
+    args = ["python", "-m", "shrem", "--convert", "--store", sourceOption, "--target", targetOption]
 
-def load_static_test_files(testPackages):
-    uniqueFiles = set()
-    if isinstance(testPackages, list):
-        for package in testPackages:
-            load_static_test_files_from_package(package, uniqueFiles)
-    elif isinstance(testPackages, ModuleType):
-        load_static_test_files_from_package(testPackages, uniqueFiles)
-    else:
-        raise ValueError("Unexpected value type for test package: %r"
-            % type(testPackages))
+    dbg("Running subprocess: '%s'" % "' '".join(args))
+    processResult = subprocess.run(args)
+    code = processResult.returncode
+    if code != 0:
+        err("Failed to copy store %s to mirror %s" % (sourceOption, targetOption))
 
-    dbg("UNIQUEFILES: %r" % uniqueFiles)
-    return uniqueFiles
+def initialize_dynamic_test_stores(testPackages):
+    '''Copy source files/databases to associated mirrors for testing'''
+    if not type(testPackages) is list:
+        testPackages = [testPackages]
 
-def initialize_dynamic_test_files(staticTestFiles):
-    '''Copy files and set envvar to communicate path
-
-    :return: list of string file paths of dynamic test files
-    '''
-    environ_lock.acquire()
-    staticDynamicMap = json.loads(os.environ.get("TESTING_URL_MIRROR_MAP", "{}"))
-    for staticFile in staticTestFiles:
-        dynamicFile = create_temporary_file(staticFile, "util.testing", TESTING_TOKEN)
-
-        # May happen if two packages submit the same static file.
-        if staticFile in staticDynamicMap:
-            assert staticDynamicMap[staticFile] == dynamicFile
+    storeMap = {}
+    for testPackage in testPackages:
+        packageDict = testPackage.__dict__
+        if "TEST_STORE_OPTION" not in packageDict:
             continue
 
-        os.makedirs(os.path.dirname(dynamicFile), exist_ok=True)
-        info("Creating mirror file: %s => %s" % (staticFile, dynamicFile))
-        shutil.copy(staticFile, dynamicFile)
-        staticDynamicMap[staticFile] = dynamicFile
+        testStoreOption = packageDict["TEST_STORE_OPTION"]
+        # Causes error if not defined.
+        mirrorStoreOption = packageDict["MIRROR_STORE_OPTION"]
 
-    # This will guide in-process testing and will be propagated to subprocesses.
-    os.environ["TESTING_URL_MIRROR_MAP"] = json.dumps(staticDynamicMap)
-    environ_lock.release()
-    return staticDynamicMap.values()
+        # May happen if two packages submit the same static file.
+        if testStoreOption in storeMap:
+            assert storeMap[testStoreOption] == mirrorStoreOption
+            continue
 
-def clean_dynamic_test_files(dynamicTestFiles):
+        storeMap[testStoreOption] = mirrorStoreOption
+
+    for testStoreOption, mirrorStoreOption in storeMap.items():
+        copy_store_to_mirror(testStoreOption, mirrorStoreOption)
+
+def clean_dynamic_test_stores(dynamicTestStores):
     '''Remove dynamically-created test files'''
-    dbg("IN CLEAN DYNAMIC TEST FILES: %r" % dynamicTestFiles)
+    dbg("IN CLEAN DYNAMIC TEST STORES: %r" % dynamicTestStores)
     if not get_debug():
-        for testFile in dynamicTestFiles:
-            os.unlink(testFile)
+        for testStore in dynamicTestStores:
+            os.unlink(testStore)
     if "TESTING_URL_MIRROR_MAP" in os.environ:
         del os.environ["TESTING_URL_MIRROR_MAP"]
 
@@ -718,11 +705,11 @@ def run_packages(suiteName, packageMap):
         listing, and map to support passing `locals()`
     :return: TestResults object summarizing the test packages that were run
     '''
+    dbg("Initializing suite %s" % suiteName)
     results = []
     threads = []
 
-    staticTestFiles = load_static_test_files(list(packageMap.values()))
-    dynamicTestFiles = initialize_dynamic_test_files(staticTestFiles)
+    initialize_dynamic_test_stores(list(packageMap.values()))
 
     if MULTITHREADED:
         q = Queue()
@@ -768,13 +755,10 @@ def run_suite():
     '''
     mainmod = sys.modules["__main__"]
 
-    staticTestFiles = load_static_test_files(mainmod)
-    dynamicTestFiles = initialize_dynamic_test_files(staticTestFiles)
+    initialize_dynamic_test_stores(mainmod)
 
     init_testing()
     result = mainmod.run()
-
-    clean_dynamic_test_files(dynamicTestFiles)
 
     sys.exit(result.code)
 
