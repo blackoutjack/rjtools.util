@@ -23,8 +23,8 @@ from util.type import type_check
 MULTITHREADED = True
 # Module threads run nested within a package thread, so these numbers multiply
 # to get the total max thread count.
-PACKAGE_THREAD_COUNT = 4
-MODULE_THREAD_COUNT = 4
+PACKAGE_THREAD_COUNT = 2
+MODULE_THREAD_COUNT = 3
 
 # Prefixes of symbol names to use for defining test cases in a test module.
 # Symbols matching these prefixes are taken up as test cases.
@@ -715,9 +715,10 @@ def run_packages(suiteName, packageMap):
         q = Queue()
 
         def worker(res):
-            pkg = q.get()
-            run_package(pkg, res)
-            q.task_done()
+            while True:
+                pkg = q.get()
+                run_package(pkg, res)
+                q.task_done()
 
         for threadNum in range(PACKAGE_THREAD_COUNT):
             t = Thread(
