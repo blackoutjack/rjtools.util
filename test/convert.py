@@ -4,11 +4,12 @@ from datetime import datetime
 from util.convert import parse_date, parse_nonnumeric, parse_numeric, amount_to_grams
 
 def test_numeric_empty():
-    '''Test warning and 0 return value when input is the empty string'''
-    val, _ = parse_numeric("")
-    return val == 0
-
-err_numeric_empty = "WARNING: No numeric data found: "
+    '''Test exception thrown when input is the empty string'''
+    try:
+        parse_numeric("")
+    except ValueError:
+        return True
+    return False
 
 def test_numeric_basic():
     '''Test parsing of a simple integer'''
@@ -84,10 +85,11 @@ def test_date_basic():
     return date.strftime("%Y-%m-%d") == "2023-01-01"
 
 def test_amount_to_grams_empty():
-    '''Test warning and 0 return value when input is the empty string'''
-    val = amount_to_grams("")
-    return val == 0
-
-err_amount_to_grams_empty = "WARNING: No amount specified"
+    '''Test exception thrown when input is the empty string'''
+    try:
+        amount_to_grams("")
+    except ValueError:
+      return True
+    return False
 
 

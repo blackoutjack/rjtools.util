@@ -84,14 +84,14 @@ def parse_numeric(inputStr):
             break
 
     if wholeNumberText == "":
-        warn("No numeric data found: %s" % inputStr)
+        raise ValueError("No numeric data found: %s" % inputStr)
         return 0, remaining
     else:
         number = float(wholeNumberText)
 
     if numeratorText != "":
         if denominatorText == "":
-            warn("Unable to parse fractional numeric data: '%s'" % inputStr)
+            raise ValueError("Unable to parse fractional numeric data: '%s'" % inputStr)
         else:
             fractionalNumber = float(numeratorText) / float(denominatorText)
             number += fractionalNumber
@@ -123,10 +123,10 @@ def amount_to_grams(amount, indent=""):
     :param indent: string of whitespace to prefix any output (warning messages)
     :return: float, the weight converted to grams
     '''
-    text = amount
+    text = amount.strip()
     total = 0
     if amount == "":
-        warn("No amount specified", indent)
+        raise ValueError("No amount specified")
     while text != "":
         amounti, text = parse_numeric(text)
         units, text = parse_nonnumeric(text)
@@ -142,7 +142,7 @@ def amount_to_grams(amount, indent=""):
         elif units == "oz":
             total += amounti * 28.34952
         else:
-            raise TypeError("Unhandled units in '%s': '%s'" % (amount, units))
+            raise ValueError("Unhandled units in '%s': '%s'" % (amount, units))
     return total
 
 def parse_range(sheetRange):

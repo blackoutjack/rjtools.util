@@ -10,7 +10,7 @@ def test_log_info():
     defaultLogger.info("testing output to stdout")
     return True
 
-out_log_info = "INFO: testing output to stdout"
+out_log_info = "testing output to stdout"
 
 def test_log_warn():
     defaultLogger.warn("warning to stdout")
