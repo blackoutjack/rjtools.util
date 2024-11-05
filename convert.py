@@ -115,25 +115,27 @@ def parse_nonnumeric(inputStr):
     text = text.strip().rstrip(".")
     return text, remaining
 
-def amount_to_grams(amount, indent=""):
+def amount_to_grams(amount, nonFatalErrors=[]):
     '''Parse a weight amount and convert it grams
 
-    Warns and assumes the unit is grams if not given explicitly.
+    Provides a non-fatal error and assumes the unit is grams if not given
+    explicitly.
     :param amount: string, the weight amount to parse
-    :param indent: string of whitespace to prefix any output (warning messages)
     :return: float, the weight converted to grams
     '''
-    text = amount.strip()
+    amount = amount.strip()
+    text = amount
     total = 0
-    if amount == "":
-        raise ValueError("No amount specified")
+    if text == "":
+        nonFatalErrors.append("No amount specified, assuming zero")
+        return 0
     while text != "":
         amounti, text = parse_numeric(text)
         units, text = parse_nonnumeric(text)
         if units == "":
             # "0" can be interpreted as 0 grams without warning
             if amount != "0":
-                warn("Units not specified in '%s', assuming grams" % amount, indent)
+                nonFatalErrors.append("Units not specified in '%s', assuming grams" % amount)
                 total += amounti
         elif units == "g":
             total += amounti
