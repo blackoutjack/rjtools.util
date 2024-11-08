@@ -29,7 +29,8 @@ def clear_message_log():
 
 def get_message_log():
     global MESSAGE_LOG, LOG_INFO_OUTPUT
-    if LOG_INFO_OUTPUT: MESSAGE_LOG.append({ "type": "info", "message": "\n".join(INFO_LOG) })
+    if LOG_INFO_OUTPUT and len(INFO_LOG) > 0:
+        MESSAGE_LOG.append({ "type": "info", "message": "\n".join(INFO_LOG) })
     return MESSAGE_LOG
 
 def disable_standard_output():
