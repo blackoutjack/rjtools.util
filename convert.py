@@ -3,6 +3,7 @@
 #
 
 from .msg import dbg, info, warn, err, num
+import math
 import datetime
 
 def today_date():
@@ -145,7 +146,7 @@ def amount_to_grams(amount, nonFatalErrors=[]):
             total += amounti * 28.34952
         else:
             raise ValueError("Unhandled units in '%s': '%s'" % (amount, units))
-    return total
+    return math.floor(total)
 
 def parse_range(sheetRange):
     rangeParts = sheetRange.split('!')
