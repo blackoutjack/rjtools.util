@@ -43,6 +43,17 @@ def date_string(date):
     year = date.strftime("%Y")
     return "/".join([month, day, year])
 
+def parse_digits(inputStr):
+    wholeNumberText = ""
+    remaining = ""
+    for i, c in enumerate(inputStr):
+        if c.isdigit():
+            wholeNumberText += c
+        else:
+            remaining = inputStr[i:]
+            break
+    return wholeNumberText, remaining
+
 def parse_numeric(inputStr):
     '''Get a numeric prefix, including potential fraction part, from a string
 
