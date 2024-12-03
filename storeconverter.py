@@ -193,11 +193,15 @@ class Converter:
                     continue
                 info("Converting table %s" % title)
 
-                dateConverters = None
+                dateConverters = {}
                 if self.opts.CONVERT_DATES:
                     dateConverters = {colName: parse_date for colName in self.opts.DATE_COLUMNS}
+                dateConverters["Id"] = str
 
-                df = pandas.read_excel(self.sourceDef.URL, sheet_name=title, converters=dateConverters);
+                df = pandas.read_excel(
+                    self.sourceDef.URL,
+                    sheet_name=title,
+                    converters=dateConverters);
                 self.dumpToTarget(title, df)
 
         elif self.sourceDef.KIND == "db":
@@ -224,20 +228,41 @@ class Converter:
         if tableName not in self.opts.RECORD_FILTER:
             return
 
-        for record in self.opts.RECORD_FILTER[tableName]:
+        hasPrimaryKeys = False
+        if hasattr(self, "metadata"):
             table = self.metadata.tables[tableName]
             primaryCols = table.primary_key.columns
-            # %%% Hack to avoid using auto-generated ids.
-            if len(primaryCols) == 0 or primaryCols[0].autoincrement is True:
-                # Just match on all columns.
+            # %%% Hack to avoid using auto-generated ids from db records
+            # %%% (which won't be there in spreadsheets)
+            dbg("PRIMARYCOLS: %d %r" % (len(primaryCols), primaryCols[0]))
+            hasPrimaryKeys = len(primaryCols) > 0 and primaryCols[0].autoincrement is not True
+        dbg("TABLE: %s HASPRIMARYKEYS: %r" % (tableName, hasPrimaryKeys))
+
+        for record in self.opts.RECORD_FILTER[tableName]:
+            if not hasPrimaryKeys:
+                # Just match on all given columns.
                 cond = None
                 for colName in record:
+                    recordValue = record[colName]
+                    # Record may have empty where the dataframe has NULL.
+                    # %%% Assumes that columns which can be empty cannot factor
+                    # %%% into the identity of a row.
+                    if recordValue == "": continue
+                    if not isinstance(recordValue, str): continue
+                    if colName not in ["Id", "Date", "Medium", "Amount", "Comments", "Plant"]:
+                        dbg("SKIPCOL: %s" % colName)
+                        continue
+
+                    dbg("COLNAME: %s, VALUE: %s" % (colName, record[colName]))
                     if cond is None:
-                        cond = (df[colName] == record[colName])
+                        cond = df[colName] == record[colName]
                     else:
                         cond = cond & (df[colName] == record[colName])
                 if cond is not None:
+                    dbg("0 DROPPING FROM %s SIZE: %d" % (tableName, len(df[colName])))
+                    dbg("COND:\n%r" % cond)
                     df.drop(df[cond].index, inplace=True)
+                    dbg("0 SIZE: %d" % len(df[colName]))
             else:
                 cond = None
                 for primaryCol in primaryCols:
@@ -246,20 +271,18 @@ class Converter:
                         cond = (df[primaryName] == record[primaryName])
                     else:
                         cond = cond & (df[primaryName] == record[primaryName])
-                    #if tableName == "Taxon":
-                    #    print("2 DROPPING %s: %r" % (tableName, cond))
                 if cond is not None:
+                    #dbg("1 DROPPING FROM %s SIZE: %d" % (tableName, len(df[primaryName])))
+                    #dbg("COND:\n%r" % cond)
                     df.drop(df[cond].index, inplace=True)
-                    #if tableName == "Taxon":
-                    #    print("2 DROPPED %s: %r" % (tableName, record))
+                    #dbg("1 SIZE: %d" % len(df[primaryName]))
 
     def dumpToTarget(self, tableName, df):
 
+        # Apply any specified data filters.
+        self.applyFilters(tableName, df)
+
         if self.targetDef.KIND == "db":
-
-            # Apply any specified data filters.
-            self.applyFilters(tableName, df)
-
             if tableName in self.opts.OMIT_COLUMNS_FOR_DB:
                 columnsToOmit = self.opts.OMIT_COLUMNS_FOR_DB[tableName]
                 df.drop(columns=columnsToOmit, inplace=True, errors='ignore')
@@ -267,6 +290,7 @@ class Converter:
             df.to_sql(tableName, con=self.engine, if_exists='append', index=False)
             self.load_last_id(self.metadata.tables["LastId"], self.metadata.tables[tableName])
         elif self.targetDef.KIND == "excel":
+
             df.to_excel(self.excelWriter, sheet_name=tableName, header=True, index=False)
         else:
             err("Unsupported target kind for conversion: %s" % self.targetDef.KIND)
