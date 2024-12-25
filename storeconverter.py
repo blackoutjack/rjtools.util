@@ -6,17 +6,24 @@ import pandas
 from sqlalchemy import create_engine, MetaData, Table, Column, String, Text, Date, Integer, select, insert
 
 from util.msg import info, warn, dbg, err
-from util.convert import parse_date
+from util.convert import parse_date_idem, date_string
 from util.type import has_type, type_error, empty, nonempty
+from util.schema import DataType
+
+COLUMN_CONVERTERS = {
+    DataType.STRING: str,
+    DataType.TEXT: str,
+    DataType.DATE: parse_date_idem,
+    # %%% What here?
+    DataType.FORMULA: lambda v: None,
+}
+
+def getTypeConverters(tableSchema):
+    return { col: COLUMN_CONVERTERS[tableSchema.columnTypes[col]] for col in tableSchema.columns }
 
 class ConverterOptions:
-    def __init__(self, sheetsToConvert, omitDbColumns={}, dateColumns=[], commentColumns=[], convertDates=False, recordFilter=None):
-        # %%% Should check all these for type/structure
-        self.SHEETS_TO_CONVERT = sheetsToConvert
-        self.OMIT_COLUMNS_FOR_DB = omitDbColumns
-        self.DATE_COLUMNS = dateColumns
-        self.COMMENT_COLUMNS = commentColumns
-        self.CONVERT_DATES = convertDates
+    def __init__(self, tableSchemas, recordFilter=None):
+        self.SCHEMAS = tableSchemas
         self.RECORD_FILTER = recordFilter
 
 class Converter:
@@ -31,6 +38,8 @@ class Converter:
 
         self.sourceTables = source.api.list_tables()
 
+        self.converters = { t.name: getTypeConverters(t) for t in self.opts.SCHEMAS.values() }
+
         #self.saveCopy(target)
         info("Clearing target store %s" % self.targetDef.ID)
         target.clear()
@@ -39,11 +48,11 @@ class Converter:
             self.metadata = MetaData()
             self.engine = create_engine(self.targetDef.URL)
 
-    def generate_table(self, sheetSchema):
-        sheetName = sheetSchema.name
-        dbg("TABLE %s" % sheetName)
-        tableKey = sheetSchema.key
-        indexes = sheetSchema.indexes
+    def generate_table(self, schema):
+        tableName = schema.name
+        dbg("TABLE %s" % tableName)
+        tableKey = schema.key
+        indexes = schema.indexes
         columns = []
         if tableKey is None:
             columns.append(Column(
@@ -54,7 +63,9 @@ class Converter:
                 primary_key=True,
                 autoincrement=True))
 
-        for colName in sheetSchema.columns:
+        columnTypes = schema.columnTypes
+
+        for colName in schema.columns:
             if has_type(tableKey, str):
                 isPrimary = colName == tableKey
             elif has_type(tableKey, tuple):
@@ -66,17 +77,22 @@ class Converter:
 
             isIndex = colName in indexes
             isNullable = True
-            if sheetName in self.opts.OMIT_COLUMNS_FOR_DB:
-                toOmit = self.opts.OMIT_COLUMNS_FOR_DB[sheetName]
-                if colName in toOmit:
-                    continue
-            if colName in self.opts.COMMENT_COLUMNS:
-                colType = Text()
-            elif colName in self.opts.DATE_COLUMNS:
-                colType = Date()
-            else:
+
+            dataType = columnTypes[colName]
+
+            # %%% Make this based on declarative config
+            if dataType == DataType.FORMULA:
+                # Formula columns are only maintained in spreadsheets
+                continue
+            elif dataType == DataType.STRING:
                 size = 32 if isPrimary else 256
                 colType = String(size)
+            elif dataType == DataType.TEXT:
+                colType = Text()
+            elif dataType in DataType.DATE:
+                colType = Date()
+            else:
+                raise ValueError("Unexpected column type for table %s: %r" % (tableName, dataType))
 
             columns.append(Column(
                 colName,
@@ -86,7 +102,7 @@ class Converter:
                 primary_key=isPrimary))
 
         table = Table(
-            sheetName,
+            tableName,
             self.metadata,
             *columns)
 
@@ -148,9 +164,8 @@ class Converter:
         info("Converting: %s => %s" % (self.sourceDef.ID, self.targetDef.ID))
         if self.targetDef.KIND == "db":
             self.create_last_id_table()
-            for sheet in self.opts.SHEETS_TO_CONVERT:
-                sheetSchema = sheet.schema
-                self.generate_table(sheetSchema)
+            for table in self.opts.SCHEMAS.values():
+                self.generate_table(table)
 
             try:
                 self.metadata.create_all(self.engine)
@@ -160,14 +175,16 @@ class Converter:
         elif self.targetDef.KIND == "excel":
             self.excelWriter = pandas.ExcelWriter(
                 self.targetDef.URL,
+                engine="xlsxwriter",
                 mode="w",
-                date_format="m/d/Y",
-                datetime_format="m/d/Y HH:MM:SS")
+                datetime_format="m/d/yyyy",
+                date_format="m/d/yyyy")
         else:
             err("Unsupported target kind for conversion: %s" % self.targetDef.KIND)
             return
 
-        expectedTables = [table.NAME for table in self.opts.SHEETS_TO_CONVERT]
+        expectedTables = self.opts.SCHEMAS.keys()
+
         if self.sourceDef.KIND == "googlesheets":
             gidNames = self.sourceTables.items()
             for gid, title in gidNames:
@@ -177,12 +194,10 @@ class Converter:
                 url = "%s/export?format=csv&gid=%d" % (self.sourceDef.URL, gid)
                 dbg("CSV URL FOR GOOGLE SHEET %s: %s" % (title, url))
                 info("Converting table %s (gid=%d)" % (title, gid))
-                dateConverters = None
 
-                if self.opts.CONVERT_DATES:
-                    dateConverters = {colName: parse_date for colName in self.opts.DATE_COLUMNS}
+                tableConverters = self.converters[title] if title in self.converters else None
 
-                df = pandas.read_csv(url, converters=dateConverters);
+                df = pandas.read_csv(url, converters=tableConverters);
 
                 self.dumpToTarget(title, df)
 
@@ -193,15 +208,12 @@ class Converter:
                     continue
                 info("Converting table %s" % title)
 
-                dateConverters = {}
-                if self.opts.CONVERT_DATES:
-                    dateConverters = {colName: parse_date for colName in self.opts.DATE_COLUMNS}
-                dateConverters["Id"] = str
+                tableConverters = self.converters[title] if title in self.converters else None
 
                 df = pandas.read_excel(
                     self.sourceDef.URL,
                     sheet_name=title,
-                    converters=dateConverters);
+                    converters=tableConverters);
                 self.dumpToTarget(title, df)
 
         elif self.sourceDef.KIND == "db":
@@ -211,11 +223,7 @@ class Converter:
                     continue
                 info("Converting table %s" % title)
 
-                dateFormats = None
-                if self.opts.CONVERT_DATES:
-                    dateFormats = {colName: '%m/%d/%Y' for colName in self.opts.DATE_COLUMNS}
-
-                df = pandas.read_sql(title, self.sourceDef.URL, parse_dates=dateFormats);
+                df = pandas.read_sql(title, self.sourceDef.URL)
                 self.dumpToTarget(title, df)
         else:
             err("Unsupported source kind for conversion: %s" % self.sourceDef.KIND)
@@ -227,6 +235,9 @@ class Converter:
     def applyFilters(self, tableName, df):
         if tableName not in self.opts.RECORD_FILTER:
             return
+
+        schema = self.opts.SCHEMAS[tableName]
+        columnTypes = schema.columnTypes
 
         hasPrimaryKeys = False
         if hasattr(self, "metadata"):
@@ -248,10 +259,8 @@ class Converter:
                     # %%% Assumes that columns which can be empty cannot factor
                     # %%% into the identity of a row.
                     if recordValue == "": continue
-                    if not isinstance(recordValue, str): continue
-                    if colName not in ["Id", "Date", "Medium", "Amount", "Comments", "Plant"]:
-                        dbg("SKIPCOL: %s" % colName)
-                        continue
+
+                    if columnTypes[colName] is DataType.FORMULA: continue
 
                     dbg("COLNAME: %s, VALUE: %s" % (colName, record[colName]))
                     if cond is None:
@@ -272,24 +281,27 @@ class Converter:
                     else:
                         cond = cond & (df[primaryName] == record[primaryName])
                 if cond is not None:
-                    #dbg("1 DROPPING FROM %s SIZE: %d" % (tableName, len(df[primaryName])))
-                    #dbg("COND:\n%r" % cond)
+                    dbg("1 DROPPING FROM %s SIZE: %d" % (tableName, len(df[primaryName])))
+                    dbg("COND:\n%r" % cond)
                     df.drop(df[cond].index, inplace=True)
-                    #dbg("1 SIZE: %d" % len(df[primaryName]))
+                    dbg("1 SIZE: %d" % len(df[primaryName]))
 
     def dumpToTarget(self, tableName, df):
+        tableConfig = self.opts.SCHEMAS[tableName]
+        columnConfig = tableConfig.columnTypes
 
         # Apply any specified data filters.
         self.applyFilters(tableName, df)
 
         if self.targetDef.KIND == "db":
-            if tableName in self.opts.OMIT_COLUMNS_FOR_DB:
-                columnsToOmit = self.opts.OMIT_COLUMNS_FOR_DB[tableName]
+            columnsToOmit = [c for c in tableConfig.columns if columnConfig[c] == DataType.FORMULA]
+            if len(columnsToOmit) > 0:
                 df.drop(columns=columnsToOmit, inplace=True, errors='ignore')
 
             df.to_sql(tableName, con=self.engine, if_exists='append', index=False)
             self.load_last_id(self.metadata.tables["LastId"], self.metadata.tables[tableName])
         elif self.targetDef.KIND == "excel":
+            # %%% Fill in FORMULA columns
 
             df.to_excel(self.excelWriter, sheet_name=tableName, header=True, index=False)
         else:

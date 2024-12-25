@@ -47,6 +47,8 @@ TESTING_TOKEN = "_test%d" % os.getpid()
 redirect = None
 # Thread lock for coordinating
 redirect_lock = RLock()
+# For atomic blocks w.r.t. test module threads
+module_lock = RLock()
 
 class TestResults:
     def __init__(self, packageName):
@@ -357,6 +359,9 @@ def run_test(mod, testName):
 
     result = True
 
+    # Matched to release() after print_result in caller.
+    module_lock.acquire()
+
     resultName = INPROCESS_RESULT_PREFIX + testName[len(INPROCESS_TEST_PREFIX):]
     if not check_result(mod, testName, resultName, testResult):
         result = False
@@ -433,6 +438,9 @@ def run_subprocess(mod, testName, commandPrefix=None):
     dbg("Running subprocess: '%s'" % "' '".join(args))
     processResult = subprocess.run(args, capture_output=True, env=os.environ)
 
+    # Matched to release() after print_result in caller.
+    module_lock.acquire()
+
     return check_process_result(
         mod,
         testName,
@@ -478,6 +486,9 @@ def run_batch(mod, testName, commandPrefix=None):
 
     processResult = subprocess.run(args, capture_output=True, input=commands, env=os.environ)
 
+    # Matched to release() after print_result in caller.
+    module_lock.acquire()
+
     return check_process_result(
         mod,
         testName,
@@ -517,8 +528,10 @@ def copy_store_to_mirror(sourceOption, targetOption):
     venvActivate = os.path.join(Path.home(), ".venvs", "shrem", "bin", "activate")
     shremDir = os.path.join(Path.home(), "lib", "shrem")
 
+    # %%% Hack to avoid breaking prod during development
+    convertArg = "convert" if "NEWCONVERT" in os.environ else "--convert"
     # %%% Requires running with virtualenv already activated.
-    args = ["python", "-m", "shrem", "--convert", "--store", sourceOption, "--target", targetOption]
+    args = ["python", "-m", "shrem", convertArg, "--store", sourceOption, "--target", targetOption]
 
     dbg("Running subprocess: '%s'" % "' '".join(args))
     processResult = subprocess.run(args)
@@ -592,6 +605,7 @@ def run_module(mod, packageName, results, commandPrefix=None):
     :param packageName: string, name of the package of which this module is part
     :param results: TestResults, an object to collect detailed test outcomes
     '''
+    dbg("Running module: %r" % mod.__name__)
     symNames = vars(mod)
     for symName in symNames:
         if symName.startswith(INPROCESS_TEST_PREFIX):
@@ -604,6 +618,7 @@ def run_module(mod, packageName, results, commandPrefix=None):
             continue
 
         print_result(packageName, mod.__name__, symName, result)
+        module_lock.release()
         if not result: results.add_failure()
         else: results.add_success()
 
@@ -669,6 +684,7 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
 
 def run_package(package, results):
     try:
+        dbg("Running package %s" % package.__name__)
         result = package.run()
     except Exception as ex:
         # Catch any problems that occur while loading the top-level code of a

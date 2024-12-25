@@ -17,13 +17,22 @@ def today_string():
     today = today_date()
     return date_string(today)
 
-def parse_date(dateStr):
+def parse_date(dateStr, warnOnly=False):
     '''Get an object representing the given date in "m/d/Y" format
 
     :param dateStr: string, the date in "m/d/Y" format
     :return: datetime64 object representing the date
     '''
     # Append the current year if no year is given.
+
+    if not isinstance(dateStr, str):
+        msg = "Unable to parse non-string date value"
+        raise ValueError(msg)
+
+    if dateStr == "":
+        msg = "Empty date value"
+        raise ValueError(msg)
+
     firstSlash = dateStr.find("/")
     if firstSlash > -1 and firstSlash == dateStr.rfind("/"):
         dateStr += "/" + today_date().strftime("%Y")
@@ -33,8 +42,19 @@ def parse_date(dateStr):
     else:
         yearComponent = "%Y"
 
+    # Can raise ValueError
     date = datetime.datetime.strptime(dateStr, "%%m/%%d/%s" % yearComponent)
     return date
+
+def parse_date_idem(dateRepr):
+    # Float may occur with errors, where the value becomes NaN
+    if dateRepr is None or isinstance(dateRepr, float):
+        return None
+
+    if isinstance(dateRepr, datetime.datetime):
+        return dateRepr
+
+    return parse_date(dateRepr)
 
 def date_string(date):
     # Strip potential leading zeros from each component (matches sheet format)
