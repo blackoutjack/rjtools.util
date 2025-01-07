@@ -26,7 +26,7 @@ def parse_date(dateStr, warnOnly=False):
     # Append the current year if no year is given.
 
     if not isinstance(dateStr, str):
-        msg = "Unable to parse non-string date value"
+        msg = "Unable to parse non-string date value: %r" % dateStr
         raise ValueError(msg)
 
     if dateStr == "":

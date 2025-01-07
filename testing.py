@@ -3,6 +3,7 @@
 import sys
 import json
 import os
+import re
 import random
 import subprocess
 import traceback
@@ -24,13 +25,16 @@ MULTITHREADED = True
 # Module threads run nested within a package thread, so these numbers multiply
 # to get the total max thread count.
 PACKAGE_THREAD_COUNT = 2
-MODULE_THREAD_COUNT = 3
+MODULE_THREAD_COUNT = 7
 
 # Prefixes of symbol names to use for defining test cases in a test module.
 # Symbols matching these prefixes are taken up as test cases.
 INPROCESS_TEST_PREFIX = "test_"
 SUBPROCESS_TEST_PREFIX = "run_"
 BATCH_TEST_PREFIX = "batch_"
+
+# Test module symbol to specify disabled tests.
+DISABLED_TESTS_SYMBOL = "DISABLED"
 
 # Prefixes of symbol names for defining expected output for test cases.
 INPROCESS_RESULT_PREFIX = "result_"
@@ -276,7 +280,12 @@ def check_output(mod, testName, expectedVarname, output, streamName):
             searchVal = expectedValue.search
 
             # Run the check variants. If any succeed, the overall check passes.
-            result = output.find(searchVal) >= 0
+            result = re.search(searchVal, output)
+            #result = output.find(searchVal) >= 0
+
+            # %%% Provide the test a way to retrieve regex matches.
+
+            result = False if result is None else True
 
             if not result:
                 print_expected_actual_mismatch(
@@ -606,8 +615,16 @@ def run_module(mod, packageName, results, commandPrefix=None):
     :param results: TestResults, an object to collect detailed test outcomes
     '''
     dbg("Running module: %r" % mod.__name__)
+    disabled = getattr(mod, DISABLED_TESTS_SYMBOL, [])
+    if not isinstance(disabled, list):
+        dbg("Unexpected type for special symbol %s, ignoring" % DISABLED_TESTS_SYMBOL)
+        disabled = []
+
     symNames = vars(mod)
     for symName in symNames:
+        if symName in disabled:
+            dbg("Skipping disabled test: %s" % symName)
+            continue
         if symName.startswith(INPROCESS_TEST_PREFIX):
             result = run_test(mod, symName)
         elif symName.startswith(SUBPROCESS_TEST_PREFIX):
