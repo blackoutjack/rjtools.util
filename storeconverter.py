@@ -11,6 +11,7 @@ from util.type import has_type, type_error, empty, nonempty
 from util.schema import DataType
 
 COLUMN_CONVERTERS = {
+    DataType.AUTOID: int,
     DataType.STRING: str,
     DataType.TEXT: str,
     DataType.DATE: parse_date_idem,
@@ -76,12 +77,17 @@ class Converter:
                 type_error("tableKey", type(tableKey), "str|tuple")
 
             isIndex = colName in indexes
-            isNullable = True
-
             dataType = columnTypes[colName]
 
+            isNullable = True
+            autoIncrement = False
+
             # %%% Make this based on declarative config
-            if dataType == DataType.FORMULA:
+            if dataType == DataType.AUTOID:
+                isNullable = False
+                autoIncrement = True
+                colType = Integer
+            elif dataType == DataType.FORMULA:
                 # Formula columns are only maintained in spreadsheets
                 continue
             elif dataType == DataType.STRING:
@@ -99,7 +105,8 @@ class Converter:
                 colType,
                 nullable=isNullable,
                 index=isIndex,
-                primary_key=isPrimary))
+                primary_key=isPrimary,
+                autoincrement=autoIncrement))
 
         table = Table(
             tableName,

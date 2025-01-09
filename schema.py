@@ -1,6 +1,7 @@
 from enum import Flag, auto
 
 class DataType(Flag):
+    AUTOID = auto()
     FORMULA = auto()
     DATE = auto()
     STRING = auto()
