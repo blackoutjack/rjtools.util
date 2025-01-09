@@ -14,10 +14,11 @@ from io import TextIOWrapper, BytesIO
 from optparse import OptionParser
 from queue import Queue
 from pathlib import Path
+from difflib import Differ
 
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.testutil import Grep
-from util.type import type_check
+from util.type import type_check, empty
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
@@ -53,6 +54,16 @@ redirect = None
 redirect_lock = RLock()
 # For atomic blocks w.r.t. test module threads
 module_lock = RLock()
+
+# Easy access to ANSI color escapes
+COLOR = {
+    "HEADER": "\033[95m",
+    "BLUE": "\033[94m",
+    "GREEN": "\033[92m",
+    "RED": "\033[91m",
+    "YELLOW": "\033[93m",
+    "ENDC": "\033[0m",
+}
 
 class TestResults:
     def __init__(self, packageName):
@@ -182,6 +193,10 @@ def print_expected_actual_mismatch(
         actual,
         expectedPrompt="Expected:",
         actualPrompt="Actual:"):
+
+    expectedHeader = expectedPrompt.strip(":")
+    actualHeader = actualPrompt.strip(":")
+
     expectedHasNewline = expected is not None and expected.find("\n") > -1
     actualHasNewline = actual is not None and actual.find("\n") > -1
     if expectedHasNewline or actualHasNewline:
@@ -203,13 +218,33 @@ def print_expected_actual_mismatch(
         expectedPrompt = "%s " % expectedPrompt
         actualPrompt = "%s " % actualPrompt
 
-    expectedDisplay = '' if expected is None else "%s%s" % (
-        expectedPrompt, expected)
-    actualDisplay = '' if actual is None else "%s%s" % (actualPrompt, actual)
+    if empty(expected): expected = ""
+    if empty(actual): actual = ""
+    d = Differ()
+    diff = d.compare(expected.splitlines(), actual.splitlines())
+
+    header = "%s\n%s%s%s" % (
+        testId,
+        '' if empty(expected) else "--- <%s%s%s>" % (COLOR["RED"], expectedHeader, COLOR["HEADER"]),
+        '' if empty(expected) or empty(actual) else ', ',
+        '' if empty(actual) else "+++ <%s%s%s>" % (COLOR["GREEN"], actualHeader, COLOR["HEADER"])
+    )
+
+    lines = [COLOR["HEADER"] + header + COLOR["ENDC"]]
+    for line in diff:
+        if line.startswith('+'):
+            lines.append(COLOR["GREEN"] + line + COLOR["ENDC"])
+        elif line.startswith('-'):
+            lines.append(COLOR["RED"] + line + COLOR["ENDC"])
+        elif line.startswith('?'):
+            lines.append(COLOR["YELLOW"] + line + COLOR["ENDC"])
+        else:
+            lines.append(line)
+    diffText = "\n".join(lines)
 
     print_divider()
-    print_error("%s\n%s\n%s"
-        % (testId, expectedDisplay, actualDisplay))
+
+    print_error("%s" % diffText)
 
 def check_code(mod, testName, expectedVarname, code):
     result = True
