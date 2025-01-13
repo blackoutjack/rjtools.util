@@ -15,6 +15,8 @@ from optparse import OptionParser
 from queue import Queue
 from pathlib import Path
 from difflib import Differ
+from functools import reduce
+import shlex
 
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from util.testutil import Grep
@@ -191,43 +193,22 @@ def print_expected_actual_mismatch(
         testId,
         expected,
         actual,
-        expectedPrompt="Expected:",
-        actualPrompt="Actual:"):
-
-    expectedHeader = expectedPrompt.strip(":")
-    actualHeader = actualPrompt.strip(":")
-
-    expectedHasNewline = expected is not None and expected.find("\n") > -1
-    actualHasNewline = actual is not None and actual.find("\n") > -1
-    if expectedHasNewline or actualHasNewline:
-        # When values that contain newlines are involved, it looks better and
-        # makes it easier to compare to ensure both values have an initial
-        # newline.
-        if expected is not None and len(expected) > 0 and expected[0] != "\n":
-            expected = "\n%s" % expected
-        if actual is not None and len(actual) > 0 and actual[0] != "\n":
-            actual = "\n%s" % actual
-    else:
-        # Add a space for looks
-        if expected is not None and actual is not None:
-            alignRight = max(len(expectedPrompt), len(actualPrompt))
-            while len(expectedPrompt) < alignRight:
-                expectedPrompt = " %s" % expectedPrompt
-            while len(actualPrompt) < alignRight:
-                actualPrompt = " %s" % actualPrompt
-        expectedPrompt = "%s " % expectedPrompt
-        actualPrompt = "%s " % actualPrompt
+        expectedTitle="Expected",
+        actualTitle="Actual",
+        command=None):
 
     if empty(expected): expected = ""
     if empty(actual): actual = ""
+
     d = Differ()
     diff = d.compare(expected.splitlines(), actual.splitlines())
 
-    header = "%s\n%s%s%s" % (
-        testId,
-        '' if empty(expected) else "--- <%s%s%s>" % (COLOR["RED"], expectedHeader, COLOR["HEADER"]),
+    header = "%s%s%s%s%s" % (
+        "%s\n" % testId,
+        '' if command is None else "%s\n" % (command),
+        '' if empty(expected) else "--- <%s%s%s>" % (COLOR["RED"], expectedTitle, COLOR["HEADER"]),
         '' if empty(expected) or empty(actual) else ', ',
-        '' if empty(actual) else "+++ <%s%s%s>" % (COLOR["GREEN"], actualHeader, COLOR["HEADER"])
+        '' if empty(actual) else "+++ <%s%s%s>" % (COLOR["GREEN"], actualTitle, COLOR["HEADER"])
     )
 
     lines = [COLOR["HEADER"] + header + COLOR["ENDC"]]
@@ -246,7 +227,7 @@ def print_expected_actual_mismatch(
 
     print_error("%s" % diffText)
 
-def check_code(mod, testName, expectedVarname, code):
+def check_code(mod, testName, expectedVarname, code, command=None):
     result = True
     testId = get_test_identifier(mod, testName)
     if expectedVarname in mod.__dict__:
@@ -257,8 +238,9 @@ def check_code(mod, testName, expectedVarname, code):
                 testId,
                 "%r" % expectedValue,
                 "%r" % code,
-                expectedPrompt="Expected return code:",
-                actualPrompt="Actual return code:")
+                expectedTitle="Expected return code",
+                actualTitle="Actual return code",
+                command=command)
             result = False
     elif code != 0:
         print_divider()
@@ -267,11 +249,12 @@ def check_code(mod, testName, expectedVarname, code):
             testId,
             None,
             str(code),
-            actualPrompt="Unexpected nonzero return code:")
+            actualTitle="Unexpected nonzero return code",
+            command=command)
         result = False
     return result
 
-def check_result(mod, testName, expectedVarname, testResult):
+def check_result(mod, testName, expectedVarname, testResult, command=None):
     checkResult = True
     testId = get_test_identifier(mod, testName)
     if expectedVarname in mod.__dict__:
@@ -282,8 +265,9 @@ def check_result(mod, testName, expectedVarname, testResult):
                 testId,
                 "%r" % expectedValue,
                 "%r" % testResult,
-                expectedPrompt="Expected result:",
-                actualPrompt="Actual result:")
+                expectedTitle="Expected result",
+                actualTitle="Actual result",
+                command=command)
             checkResult = False
     elif not testResult:
         print_divider()
@@ -291,7 +275,8 @@ def check_result(mod, testName, expectedVarname, testResult):
             testId,
             None,
             "%r" % testResult,
-            actualPrompt="False result:")
+            actualTitle="False result",
+            command=command)
         print_error("%s: falsy result: %r" % (testId, testResult))
         checkResult = False
     return checkResult
@@ -299,7 +284,7 @@ def check_result(mod, testName, expectedVarname, testResult):
 def get_test_identifier(mod, testName):
     return "%s/%s" % (mod.__name__, testName)
 
-def check_output(mod, testName, expectedVarname, output, streamName):
+def check_output(mod, testName, expectedVarname, output, streamName, command=None):
     testId = get_test_identifier(mod, testName)
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
@@ -327,8 +312,9 @@ def check_output(mod, testName, expectedVarname, output, streamName):
                     testId,
                     searchVal,
                     output,
-                    expectedPrompt="Expected %s substring:" % streamName,
-                    actualPrompt="Actual %s output:" % streamName)
+                    expectedTitle="Expected %s substring" % streamName,
+                    actualTitle="Actual %s output" % streamName,
+                    command=command)
         else:
             # Compare to the exact output (possibly with `TEST_DIR` replaced)
             idVariant = lambda out: out
@@ -359,8 +345,9 @@ def check_output(mod, testName, expectedVarname, output, streamName):
                     testId,
                     expectedValue,
                     output,
-                    expectedPrompt="Expected %s output:" % streamName,
-                    actualPrompt="Actual %s output:" % streamName)
+                    expectedTitle="Expected %s output" % streamName,
+                    actualTitle="Actual %s output" % streamName,
+                    command=command)
 
     elif len(output) == 0:
         # Checks out ok: no output and no expected output
@@ -371,7 +358,8 @@ def check_output(mod, testName, expectedVarname, output, streamName):
             testId,
             None,
             output,
-            actualPrompt="Unexpected %s output:" % streamName)
+            actualTitle="Unexpected %s output" % streamName,
+            command=command)
         result = False
 
     return result
@@ -423,7 +411,7 @@ def run_test(mod, testName):
 
     return result
 
-def check_process_result(mod, testName, testPrefix, processResult):
+def check_process_result(mod, testName, testPrefix, processResult, command=None):
     '''Validate results of a test that ran as a subprocess
 
     :param mod: the test module
@@ -447,15 +435,15 @@ def check_process_result(mod, testName, testPrefix, processResult):
 
     result = True
     codeName = SUBPROCESS_CODE_PREFIX + testSuffix
-    if not check_code(mod, testName, codeName, code):
+    if not check_code(mod, testName, codeName, code, command):
         result = False
 
     outName = TEST_OUTPUT_PREFIX + testSuffix
-    if not check_output(mod, testName, outName, out, "stdout"):
+    if not check_output(mod, testName, outName, out, "stdout", command):
         result = False
 
     errName = TEST_ERROR_PREFIX + testSuffix
-    if not check_output(mod, testName, errName, errout, "stderr"):
+    if not check_output(mod, testName, errName, errout, "stderr", command):
         result = False
 
     return result
@@ -479,7 +467,16 @@ def run_subprocess(mod, testName, commandPrefix=None):
     # Pass along debug option
     if get_debug(): args.append("-g")
 
-    dbg("Running subprocess: '%s'" % "' '".join(args))
+    try:
+        commandText = shlex.join(args)
+    except TypeError as ex:
+        # Matched to release() after print_result in caller.
+        module_lock.acquire()
+        print_divider()
+        print_error("%sCommand arguments contain unsupported types: %r%s" % (COLOR["RED"], args, COLOR["ENDC"]))
+        return False
+
+    dbg("Running subprocess: %s" % commandText)
     processResult = subprocess.run(args, capture_output=True, env=os.environ)
 
     # Matched to release() after print_result in caller.
@@ -489,7 +486,8 @@ def run_subprocess(mod, testName, commandPrefix=None):
         mod,
         testName,
         SUBPROCESS_TEST_PREFIX,
-        processResult)
+        processResult,
+        commandText)
 
 def run_batch(mod, testName, commandPrefix=None):
     '''Run a batch test that reads stdin to perform a series of operations
