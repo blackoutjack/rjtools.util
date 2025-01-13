@@ -10,20 +10,30 @@ def today_date():
     return datetime.datetime.today()
 
 def today_string():
-    '''Get the current date with single-digit month and day and 4-digit year
+    '''Get the current date in ISO format
 
     :return: string, representing the current date
     '''
     today = today_date()
     return date_string(today)
 
-def parse_date(dateStr, warnOnly=False):
+def today_user_string():
+    '''Get the current date with single-digit month and day and 4-digit year
+
+    :return: string, representing the current date
+    '''
+    today = today_date()
+    return date_user_string(today)
+
+def parse_date(dateStr, form="%Y-%m-%d"):
     '''Get an object representing the given date in "YYYY-mm-dd" format
 
     :param dateStr: string, the date in "YYYY/mm/dd" format
     :return: datetime64 object representing the date
     '''
-    # Append the current year if no year is given.
+    if dateStr is None:
+        msg = "Empty date value"
+        raise ValueError(msg)
 
     if not isinstance(dateStr, str):
         msg = "Unable to parse non-string date value: %r" % dateStr
@@ -34,16 +44,17 @@ def parse_date(dateStr, warnOnly=False):
         raise ValueError(msg)
 
     # Can raise ValueError
-    date = datetime.datetime.strptime(dateStr, "%Y-%m-%d")
+    date = datetime.datetime.strptime(dateStr, form)
     return date
 
-def parse_user_date(dateStr, warnOnly=False):
+def parse_user_date(dateStr):
     '''Get an object representing the given date in "m/d/Y" format
 
     :param dateStr: string, the date in "m/d/Y" format
     :return: datetime64 object representing the date
     '''
-    # Append the current year if no year is given.
+    if dateStr is None:
+        return None
 
     if not isinstance(dateStr, str):
         msg = "Unable to parse non-string date value: %r" % dateStr
@@ -53,6 +64,7 @@ def parse_user_date(dateStr, warnOnly=False):
         msg = "Empty date value"
         raise ValueError(msg)
 
+    # Append the current year if no year is given.
     firstSlash = dateStr.find("/")
     if firstSlash > -1 and firstSlash == dateStr.rfind("/"):
         dateStr += "/" + today_date().strftime("%Y")
@@ -66,6 +78,17 @@ def parse_user_date(dateStr, warnOnly=False):
     date = datetime.datetime.strptime(dateStr, "%%m/%%d/%s" % yearComponent)
     return date
 
+def iso_to_user_date(dateISO, doWarn=True):
+    try:
+        return date_user_string(parse_iso_date(dateISO))
+    except ValueError as ex:
+        if doWarn:
+            warn("Error while parsing ISO date to display date: %s" % str(ex))
+        return None
+
+def parse_iso_date(dateISO):
+    return parse_date(dateISO, "%Y-%m-%d")
+
 def parse_date_idem(dateRepr):
     # Float may occur with errors, where the value becomes NaN
     if dateRepr is None or isinstance(dateRepr, float):
@@ -77,9 +100,13 @@ def parse_date_idem(dateRepr):
     return parse_date(dateRepr)
 
 def date_string(date):
+    if date is None: return None
+
     return "%s-%s-%s" % (date.strftime("%Y"), date.strftime("%m"), date.strftime("%d"))
 
-def date_string_old(date):
+def date_user_string(date):
+    if date is None: return None
+
     # Strip potential leading zeros from each component (matches sheet format)
     month = date.strftime("%m").lstrip("0")
     day = date.strftime("%d").lstrip("0")
