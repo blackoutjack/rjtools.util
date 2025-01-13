@@ -18,6 +18,26 @@ def today_string():
     return date_string(today)
 
 def parse_date(dateStr, warnOnly=False):
+    '''Get an object representing the given date in "YYYY-mm-dd" format
+
+    :param dateStr: string, the date in "YYYY/mm/dd" format
+    :return: datetime64 object representing the date
+    '''
+    # Append the current year if no year is given.
+
+    if not isinstance(dateStr, str):
+        msg = "Unable to parse non-string date value: %r" % dateStr
+        raise ValueError(msg)
+
+    if dateStr == "":
+        msg = "Empty date value"
+        raise ValueError(msg)
+
+    # Can raise ValueError
+    date = datetime.datetime.strptime(dateStr, "%Y-%m-%d")
+    return date
+
+def parse_user_date(dateStr, warnOnly=False):
     '''Get an object representing the given date in "m/d/Y" format
 
     :param dateStr: string, the date in "m/d/Y" format
@@ -57,6 +77,9 @@ def parse_date_idem(dateRepr):
     return parse_date(dateRepr)
 
 def date_string(date):
+    return "%s-%s-%s" % (date.strftime("%Y"), date.strftime("%m"), date.strftime("%d"))
+
+def date_string_old(date):
     # Strip potential leading zeros from each component (matches sheet format)
     month = date.strftime("%m").lstrip("0")
     day = date.strftime("%d").lstrip("0")
@@ -194,8 +217,6 @@ def parse_range(sheetRange):
 
     startColumn = num(startColumn)
     endColumn = num(endColumn)
-
-    #dbg("%s:%r,%r,%r,%r" % (sheetName, startColumn, startRow, endColumn, endRow))
 
     return sheetName, (startColumn, startRow), (endColumn, endRow)
 
