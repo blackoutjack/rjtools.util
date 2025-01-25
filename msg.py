@@ -33,7 +33,7 @@ def get_message_log():
         MESSAGE_LOG.append({ "type": "info", "message": "\n".join(INFO_LOG) })
     return MESSAGE_LOG
 
-def disable_standard_output():
+def filter_messages():
     global STANDARD_OUTPUT
     STANDARD_OUTPUT = False
 
@@ -41,7 +41,7 @@ def disable_info_logging():
     global LOG_INFO_OUTPUT
     LOG_INFO_OUTPUT = False
 
-def enable_standard_output():
+def unfilter_messages():
     global STANDARD_OUTPUT
     STANDARD_OUTPUT = True
 
