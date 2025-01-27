@@ -10,6 +10,8 @@ from util.convert import parse_date_idem, date_string
 from util.type import has_type, type_error, empty, nonempty
 from util.schema import DataType
 
+DATE_CONVERT = True
+
 COLUMN_CONVERTERS = {
     DataType.AUTOID: int,
     DataType.STRING: str,
@@ -95,7 +97,7 @@ class Converter:
                 colType = String(size)
             elif dataType == DataType.TEXT:
                 colType = Text()
-            elif dataType in DataType.DATE:
+            elif dataType == DataType.DATE:
                 colType = Date()
             else:
                 raise ValueError("Unexpected column type for table %s: %r" % (tableName, dataType))
@@ -230,7 +232,14 @@ class Converter:
                     continue
                 info("Converting table %s" % title)
 
-                df = pandas.read_sql(title, self.sourceDef.URL)
+                schema = self.opts.SCHEMAS[title]
+
+                # Ensure that dates are treated as dates. Not typically needed,
+                # but properly converts if the source db was storing dates
+                # column info as strings.
+                parseDates = [col for col in schema.columns if schema.columnTypes[col] == DataType.DATE]
+
+                df = pandas.read_sql(title, self.sourceDef.URL, parse_dates=parseDates)
                 self.dumpToTarget(title, df)
         else:
             err("Unsupported source kind for conversion: %s" % self.sourceDef.KIND)
