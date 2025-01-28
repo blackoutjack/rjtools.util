@@ -3,10 +3,10 @@
 import os
 
 import pandas
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Text, Date, Integer, select, insert
+from sqlalchemy import create_engine, MetaData, Table, Column, String, Text, Date, DateTime, TIMESTAMP, Integer, select, insert, text
 
 from util.msg import info, warn, dbg, err
-from util.convert import parse_date_idem, date_string
+from util.convert import parse_date_idem, date_string, parse_timestamp
 from util.type import has_type, type_error, empty, nonempty
 from util.schema import DataType
 
@@ -17,7 +17,11 @@ COLUMN_CONVERTERS = {
     DataType.STRING: str,
     DataType.TEXT: str,
     DataType.DATE: parse_date_idem,
-    # %%% What here?
+    DataType.DATETIME: parse_timestamp,
+    DataType.TIMESTAMP: parse_timestamp,
+    DataType.AUTOTIMESTAMP: parse_timestamp,
+    DataType.CREATETIMESTAMP: parse_timestamp,
+    # %%% What here for FORMULA?
     DataType.FORMULA: lambda v: None,
 }
 
@@ -47,9 +51,13 @@ class Converter:
         info("Clearing target store %s" % self.targetDef.ID)
         target.clear()
 
+        if self.sourceDef.KIND == "db":
+            self.metadata = MetaData()
+            self.sourceEngine = create_engine(self.sourceDef.URL)
+
         if self.targetDef.KIND == "db":
             self.metadata = MetaData()
-            self.engine = create_engine(self.targetDef.URL)
+            self.targetEngine = create_engine(self.targetDef.URL)
 
     def generate_table(self, schema):
         tableName = schema.name
@@ -83,6 +91,7 @@ class Converter:
 
             isNullable = True
             autoIncrement = False
+            serverDefault = None
 
             # %%% Make this based on declarative config
             if dataType == DataType.AUTOID:
@@ -99,6 +108,18 @@ class Converter:
                 colType = Text()
             elif dataType == DataType.DATE:
                 colType = Date()
+            elif dataType == DataType.DATETIME:
+                colType = DateTime()
+            elif dataType == DataType.TIMESTAMP:
+                colType = TIMESTAMP()
+            elif dataType == DataType.AUTOTIMESTAMP:
+                colType = TIMESTAMP()
+                isNullable = False
+                serverDefault=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+            elif dataType == DataType.CREATETIMESTAMP:
+                serverDefault=text("CURRENT_TIMESTAMP")
+                colType = TIMESTAMP()
+                isNullable = False
             else:
                 raise ValueError("Unexpected column type for table %s: %r" % (tableName, dataType))
 
@@ -108,7 +129,9 @@ class Converter:
                 nullable=isNullable,
                 index=isIndex,
                 primary_key=isPrimary,
-                autoincrement=autoIncrement))
+                autoincrement=autoIncrement,
+                server_default=serverDefault
+            ))
 
         table = Table(
             tableName,
@@ -150,7 +173,7 @@ class Converter:
             info("Skipping last id tracking for autoincrement primary key in table %s" % table.name)
             return
         selectStmt = select(primaryKey)
-        with self.engine.connect() as conn:
+        with self.targetEngine.connect() as conn:
             result = conn.execute(selectStmt)
             rows = result.all()
         lastIntId = 0
@@ -165,7 +188,7 @@ class Converter:
             "table_name": table.name,
             "last_int_id": lastIntId
         })
-        with self.engine.connect() as conn:
+        with self.targetEngine.connect() as conn:
             conn.execute(insertStmt)
             conn.commit()
 
@@ -174,10 +197,15 @@ class Converter:
         if self.targetDef.KIND == "db":
             self.create_last_id_table()
             for table in self.opts.SCHEMAS.values():
-                self.generate_table(table)
+                if self.sourceDef.KIND == "db":
+                    # Simply copy the schema from the existing database.
+                    sqlTable = Table(table.name, self.metadata, autoload_with=self.sourceEngine)
+                else:
+                    # Generate table definitions from the shrem data types.
+                    self.generate_table(table)
 
             try:
-                self.metadata.create_all(self.engine)
+                self.metadata.create_all(self.targetEngine)
             except OperationalError as ex:
                 err("Failed to create database tables in %s: %s" % (self.targetDef.ID, str(ex)))
                 return
@@ -234,10 +262,20 @@ class Converter:
 
                 schema = self.opts.SCHEMAS[title]
 
+                colTypes = schema.columnTypes
+
                 # Ensure that dates are treated as dates. Not typically needed,
                 # but properly converts if the source db was storing dates
                 # column info as strings.
-                parseDates = [col for col in schema.columns if schema.columnTypes[col] == DataType.DATE]
+                parseDates = {
+                    col: "%Y-%m-%d" if colTypes[col] == DataType.DATE
+                        else "%Y-%m-%d %H:%M:%S"
+                    for col in schema.columns
+                    if schema.columnTypes[col] == DataType.DATE
+                        or schema.columnTypes[col] == DataType.TIMESTAMP
+                        or schema.columnTypes[col] == DataType.AUTOTIMESTAMP
+                        or schema.columnTypes[col] == DataType.CREATETIMESTAMP
+                }
 
                 df = pandas.read_sql(title, self.sourceDef.URL, parse_dates=parseDates)
                 self.dumpToTarget(title, df)
@@ -314,7 +352,7 @@ class Converter:
             if len(columnsToOmit) > 0:
                 df.drop(columns=columnsToOmit, inplace=True, errors='ignore')
 
-            df.to_sql(tableName, con=self.engine, if_exists='append', index=False)
+            df.to_sql(tableName, con=self.targetEngine, if_exists='append', index=False)
             self.load_last_id(self.metadata.tables["LastId"], self.metadata.tables[tableName])
         elif self.targetDef.KIND == "excel":
             # %%% Fill in FORMULA columns

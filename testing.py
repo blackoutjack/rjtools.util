@@ -28,7 +28,7 @@ MULTITHREADED = True
 # Module threads run nested within a package thread, so these numbers multiply
 # to get the total max thread count.
 PACKAGE_THREAD_COUNT = 2
-MODULE_THREAD_COUNT = 7
+MODULE_THREAD_COUNT = 5
 
 # Prefixes of symbol names to use for defining test cases in a test module.
 # Symbols matching these prefixes are taken up as test cases.

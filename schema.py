@@ -6,6 +6,10 @@ class DataType(Flag):
     DATE = auto()
     STRING = auto()
     TEXT = auto()
+    DATETIME = auto()
+    TIMESTAMP = auto()
+    CREATETIMESTAMP = auto()
+    AUTOTIMESTAMP = auto()
 
 class TableSchema:
     def __init__(self, name, columnDefs, keyNames, indexes=[], headerRowNum=1):

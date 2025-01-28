@@ -6,8 +6,19 @@ from .msg import dbg, info, warn, err, num
 import math
 import datetime
 
+def now_time():
+    return datetime.datetime.now()
+
 def today_date():
     return datetime.datetime.today()
+
+def now_string():
+    '''Get the current time in ISO format
+
+    :return: string, representing the current time
+    '''
+    now = now_date()
+    return timestamp_string(now)
 
 def today_string():
     '''Get the current date in ISO format
@@ -88,6 +99,41 @@ def iso_to_user_date(dateISO, doWarn=True):
 
 def parse_iso_date(dateISO):
     return parse_date(dateISO, "%Y-%m-%d")
+
+def timestamp_string(timestamp):
+    if timestamp is None: return None
+
+    return "%s-%s-%s %s:%s:%s" % (
+        timestamp.strftime("%Y"),
+        timestamp.strftime("%m"),
+        timestamp.strftime("%d"),
+        timestamp.strftime("%H"),
+        timestamp.strftime("%M"),
+        timestamp.strftime("%S"),
+    )
+
+def parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S"):
+    '''Create a datetime object representing the timestamp string
+
+    :param timestamp: string, the timestamp in the given format
+    :param form: string, format to expect when parsing
+    :return: datetime64 object representing the date
+    '''
+    if timestamp is None:
+        msg = "Empty timestamp value"
+        raise ValueError(msg)
+
+    if not isinstance(timestamp, str):
+        msg = "Unable to parse non-string timestamp value: %r" % timestamp
+        raise ValueError(msg)
+
+    if timestamp == "":
+        msg = "Empty timestamp value"
+        raise ValueError(msg)
+
+    # Can raise ValueError
+    timestampObj = datetime.datetime.strptime(timestamp, form)
+    return timestampObj
 
 def parse_date_idem(dateRepr):
     # Float may occur with errors, where the value becomes NaN
