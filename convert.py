@@ -5,6 +5,7 @@
 from .msg import dbg, info, warn, err, num
 import math
 import datetime
+import html
 
 def now_time():
     return datetime.datetime.now()
@@ -292,4 +293,9 @@ def parse_range(sheetRange):
     endColumn = num(endColumn)
 
     return sheetName, (startColumn, startRow), (endColumn, endRow)
+
+def html_escape(val):
+    if val is None:
+        return ""
+    return html.escape(val)
 
