@@ -2,23 +2,26 @@
 # Utility functions for parsing string and converting values
 #
 
-from .msg import dbg, info, warn, err, num
+from .msg import warn, num
 import math
 import datetime
 import html
 
+
 def now_time():
     return datetime.datetime.now()
 
+
 def today_date():
     return datetime.datetime.today()
+
 
 def now_string():
     '''Get the current time in ISO format
 
     :return: string, representing the current time
     '''
-    now = now_date()
+    now = now_time()
     return timestamp_string(now)
 
 def today_string():
@@ -90,6 +93,7 @@ def parse_user_date(dateStr):
     date = datetime.datetime.strptime(dateStr, "%%m/%%d/%s" % yearComponent)
     return date
 
+
 def iso_to_user_date(dateISO, doWarn=True):
     try:
         return date_user_string(parse_iso_date(dateISO))
@@ -98,8 +102,10 @@ def iso_to_user_date(dateISO, doWarn=True):
             warn("Error while parsing ISO date to display date: %s" % str(ex))
         return None
 
+
 def parse_iso_date(dateISO):
     return parse_date(dateISO, "%Y-%m-%d")
+
 
 def timestamp_string(timestamp):
     if timestamp is None: return None
@@ -112,6 +118,7 @@ def timestamp_string(timestamp):
         timestamp.strftime("%M"),
         timestamp.strftime("%S"),
     )
+
 
 def parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S"):
     '''Create a datetime object representing the timestamp string
@@ -136,6 +143,7 @@ def parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S"):
     timestampObj = datetime.datetime.strptime(timestamp, form)
     return timestampObj
 
+
 def parse_date_idem(dateRepr):
     # Float may occur with errors, where the value becomes NaN
     if dateRepr is None or isinstance(dateRepr, float):
@@ -146,19 +154,26 @@ def parse_date_idem(dateRepr):
 
     return parse_date(dateRepr)
 
+
 def date_string(date):
     if date is None: return None
 
-    return "%s-%s-%s" % (date.strftime("%Y"), date.strftime("%m"), date.strftime("%d"))
+    return "%s-%s-%s" % (
+        date.strftime("%Y"),
+        date.strftime("%m"),
+        date.strftime("%d"))
+
 
 def date_user_string(date):
-    if date is None: return None
+    if date is None:
+        return None
 
     # Strip potential leading zeros from each component (matches sheet format)
     month = date.strftime("%m").lstrip("0")
     day = date.strftime("%d").lstrip("0")
     year = date.strftime("%Y")
     return "/".join([month, day, year])
+
 
 def parse_digits(inputStr):
     wholeNumberText = ""
@@ -170,6 +185,7 @@ def parse_digits(inputStr):
             remaining = inputStr[i:]
             break
     return wholeNumberText, remaining
+
 
 def parse_numeric(inputStr):
     '''Get a numeric prefix, including potential fraction part, from a string
@@ -244,6 +260,7 @@ def parse_nonnumeric(inputStr):
     text = text.strip().rstrip(".")
     return text, remaining
 
+
 def amount_to_grams(amount, nonFatalErrors=[]):
     '''Parse a weight amount and convert it grams
 
@@ -264,7 +281,8 @@ def amount_to_grams(amount, nonFatalErrors=[]):
         if units == "":
             # "0" can be interpreted as 0 grams without warning
             if amount != "0":
-                nonFatalErrors.append("Units not specified in '%s', assuming grams" % amount)
+                nonFatalErrors.append(
+                    "Units not specified in '%s', assuming grams" % amount)
                 total += amounti
         elif units == "g":
             total += amounti
@@ -275,6 +293,7 @@ def amount_to_grams(amount, nonFatalErrors=[]):
         else:
             raise ValueError("Unhandled units in '%s': '%s'" % (amount, units))
     return math.floor(total)
+
 
 def parse_range(sheetRange):
     rangeParts = sheetRange.split('!')
@@ -294,8 +313,8 @@ def parse_range(sheetRange):
 
     return sheetName, (startColumn, startRow), (endColumn, endRow)
 
+
 def html_escape(val):
     if val is None:
         return ""
     return html.escape(val)
-

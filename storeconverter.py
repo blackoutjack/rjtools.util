@@ -1,16 +1,18 @@
 # Dump the contents of a data source to a target data store.
 #
-import os
-
 import pandas
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Text, Date, DateTime, TIMESTAMP, Integer, select, insert, text
+from sqlalchemy import (
+    create_engine, MetaData, Table, Column, String, Text, Date, DateTime,
+    TIMESTAMP, Integer, select, insert, text)
+from sqlalchemy.exc import OperationalError
 
 from util.msg import info, warn, dbg, err
-from util.convert import parse_date_idem, date_string, parse_timestamp
-from util.type import has_type, type_error, empty, nonempty
+from util.convert import parse_date_idem, parse_timestamp, parse_iso_date, parse_user_date
+from util.type import has_type, type_error, empty
 from util.schema import DataType
 
-DATE_CONVERT = True
+COPY_DB_SCHEMA = False
+FIX_DATES = False  # True here requires COPY_DB_SCHEMA to be False
 
 COLUMN_CONVERTERS = {
     DataType.AUTOID: int,
@@ -133,10 +135,8 @@ class Converter:
                 server_default=serverDefault
             ))
 
-        table = Table(
-            tableName,
-            self.metadata,
-            *columns)
+        # New table is injected into metadata.
+        Table(tableName, self.metadata, *columns)
 
     def create_last_id_table(self):
         columns = [
@@ -155,11 +155,8 @@ class Converter:
                 primary_key=False,
             ),
         ]
-        table = Table(
-            "LastId",
-            self.metadata,
-            *columns,
-        )
+        # New table is injected into metadata.
+        Table("LastId", self.metadata, *columns)
 
     def load_last_id(self, nextIdTable, table):
         if len(table.primary_key.columns) == 0:
@@ -197,9 +194,9 @@ class Converter:
         if self.targetDef.KIND == "db":
             self.create_last_id_table()
             for table in self.opts.SCHEMAS.values():
-                if self.sourceDef.KIND == "db":
+                if self.sourceDef.KIND == "db" and COPY_DB_SCHEMA:
                     # Simply copy the schema from the existing database.
-                    sqlTable = Table(table.name, self.metadata, autoload_with=self.sourceEngine)
+                    Table(table.name, self.metadata, autoload_with=self.sourceEngine)
                 else:
                     # Generate table definitions from the shrem data types.
                     self.generate_table(table)
@@ -264,20 +261,25 @@ class Converter:
 
                 colTypes = schema.columnTypes
 
-                # Ensure that dates are treated as dates. Not typically needed,
-                # but properly converts if the source db was storing dates
-                # column info as strings.
-                parseDates = {
-                    col: "%Y-%m-%d" if colTypes[col] == DataType.DATE
-                        else "%Y-%m-%d %H:%M:%S"
-                    for col in schema.columns
-                    if schema.columnTypes[col] == DataType.DATE
-                        or schema.columnTypes[col] == DataType.TIMESTAMP
-                        or schema.columnTypes[col] == DataType.AUTOTIMESTAMP
-                        or schema.columnTypes[col] == DataType.CREATETIMESTAMP
-                }
+                df = pandas.read_sql(title, self.sourceDef.URL)
 
-                df = pandas.read_sql(title, self.sourceDef.URL, parse_dates=parseDates)
+                if FIX_DATES:
+                    def fixDate(date):
+                        if empty(date): return None
+                        try:
+                            return parse_iso_date(date)
+                        except ValueError:
+                            try:
+                                return parse_user_date(date)
+                            except ValueError:
+                                err("Failed to parse date value in column %s: %r" % (col, date))
+                                return None
+
+                    for col in schema.columns:
+                        if colTypes[col] == DataType.DATE:
+                            if df[col].dtype.kind != 'M':
+                                df[col] = df[col].apply(fixDate)
+
                 self.dumpToTarget(title, df)
         else:
             err("Unsupported source kind for conversion: %s" % self.sourceDef.KIND)
