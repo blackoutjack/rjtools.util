@@ -1,7 +1,7 @@
 '''Test conversion functions in the util.convert module'''
 
 from datetime import datetime
-from util.convert import parse_date, parse_nonnumeric, parse_numeric, amount_to_grams
+from util.convert import parse_date, parse_user_date, parse_nonnumeric, parse_numeric, amount_to_grams
 
 def test_numeric_empty():
     '''Test exception thrown when input is the empty string'''
@@ -81,15 +81,16 @@ def test_date_empty():
 
 def test_date_basic():
     '''Test basic date parsing'''
-    date = parse_date("1/1/2023")
+    date = parse_user_date("1/1/2023")
     return date.strftime("%Y-%m-%d") == "2023-01-01"
 
 def test_amount_to_grams_empty():
     '''Test exception thrown when input is the empty string'''
+    errors = []
     try:
-        amount_to_grams("")
+        amount_to_grams("", errors)
     except ValueError:
-      return True
-    return False
+        return False
+    return len(errors) == 1 and errors[0] == "No amount specified, assuming zero"
 
 

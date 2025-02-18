@@ -79,14 +79,3 @@ def err(msg, indent="", target=None):
 
 def s_if_plural(count):
     return "" if count == 1 else "s"
-
-# %%% Handle cases where num > 26 (return "AA", "AB" and so forth)
-def alpha(num, lower=False):
-    shift = 96 if lower else 64
-    return chr(num + shift)
-
-# %%% Handle double/triple/etc letters ("AA"=27, "AB"=28 and so forth)
-def num(alpha):
-    lower = alpha.lower() == alpha
-    shift = 96 if lower else 64
-    return ord(alpha) - shift

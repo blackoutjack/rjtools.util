@@ -1,10 +1,15 @@
+"""Utility functions for type-checking"""
 
-
-'''Emptiness test meant for possibly-None strings'''
 def empty(value):
+    """
+    Emptiness check, polymorphic over None, str and list
+
+    :param value: value to check for emptiness
+    """
     return value in [None, '', []]
 
 def nonempty(value):
+    """Non-emptiness check, inverse of `empty`"""
     return not empty(value)
 
 def type_error(varname, actual_typename, expected_typename):

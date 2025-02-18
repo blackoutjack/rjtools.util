@@ -1,9 +1,17 @@
-#
-# Utility functions for working with collection types.
-#
+"""
+Utility functions for working with collection types.
+"""
+
 
 def update_multimap(multimap, key, value):
-    foundDuplicate = False
+    """
+    Add a value to a multimap
+
+    :param multimap: the multimap to update
+    :param key: key in the multimap
+    :param value: value to add for the key
+    :return: bool, whether a value was already present for the key
+    """
     if key not in multimap:
         multimap[key] = []
     values = multimap[key]
