@@ -21,4 +21,27 @@ class Grep:
         # String to search for
         self.search = search
 
+class JSONFilter:
+    def __init__(self, remove, text):
+        # JSON attributes to remove
+        self.remove = remove
+        self.text = text.strip()
+
+    def applyFilter(self, output):
+        jsonObj = json.loads(output)
+        filteredObj = filterJSONRecursive(jsonObj, self.remove)
+        return json.dumps(filteredObj, indent=2)
+
+
+def filterJSONRecursive(jsonObj, keysToRemove):
+    if isinstance(jsonObj, dict):
+        for key in keysToRemove:
+            if key in jsonObj:
+                del jsonObj[key]
+        for key, value in jsonObj.items():
+            jsonObj[key] = filterJSONRecursive(value, keysToRemove)
+    elif isinstance(jsonObj, list):
+        for i in range(len(jsonObj)):
+            jsonObj[i] = filterJSONRecursive(jsonObj[i], keysToRemove)
+    return jsonObj
 

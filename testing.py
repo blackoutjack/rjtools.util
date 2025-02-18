@@ -19,7 +19,7 @@ from functools import reduce
 import shlex
 
 from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
-from util.testutil import Grep
+from util.testutil import Grep, JSONFilter
 from util.type import type_check, empty
 
 # Toggle parallel running of test modules. Test cases within a module are
@@ -35,6 +35,8 @@ MODULE_THREAD_COUNT = 5
 INPROCESS_TEST_PREFIX = "test_"
 SUBPROCESS_TEST_PREFIX = "run_"
 BATCH_TEST_PREFIX = "batch_"
+# Add command-line arguments to the command for interactive mode.
+COMMAND_PREFIX_ADDITIONS = "global_options"
 
 # Test module symbol to specify disabled tests.
 DISABLED_TESTS_SYMBOL = "DISABLED"
@@ -315,7 +317,17 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
                     expectedTitle="Expected %s substring" % streamName,
                     actualTitle="Actual %s output" % streamName,
                     command=command)
+
         else:
+            if type(expectedValue) is JSONFilter:
+                try:
+                    # Remove the specified attributes from the JSON output
+                    output = expectedValue.applyFilter(output)
+                    expectedValue = expectedValue.text
+                except json.JSONDecodeError as ex:
+                    err("Invalid JSON supplied in test %s: %s" % (testName, str(ex)))
+                    return False
+
             # Compare to the exact output (possibly with `TEST_DIR` replaced)
             idVariant = lambda out: out
             # Actual output will typically end with newline, but don't force
@@ -653,17 +665,22 @@ def run_module(mod, packageName, results, commandPrefix=None):
         dbg("Unexpected type for special symbol %s, ignoring" % DISABLED_TESTS_SYMBOL)
         disabled = []
 
+    extendedCommandPrefix = None if commandPrefix is None else commandPrefix.copy()
+
     symNames = vars(mod)
     for symName in symNames:
         if symName in disabled:
             dbg("Skipping disabled test: %s" % symName)
             continue
-        if symName.startswith(INPROCESS_TEST_PREFIX):
+        if symName == COMMAND_PREFIX_ADDITIONS:
+            extendedCommandPrefix.extend(mod.__dict__[symName])
+            continue
+        elif symName.startswith(INPROCESS_TEST_PREFIX):
             result = run_test(mod, symName)
         elif symName.startswith(SUBPROCESS_TEST_PREFIX):
-            result = run_subprocess(mod, symName, commandPrefix)
+            result = run_subprocess(mod, symName, extendedCommandPrefix)
         elif symName.startswith(BATCH_TEST_PREFIX):
-            result = run_batch(mod, symName, commandPrefix)
+            result = run_batch(mod, symName, extendedCommandPrefix)
         else:
             continue
 
@@ -690,6 +707,7 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
     modules. The grouping of modules is called "suitename" in reporting.
     :param packageName: name of the test package, for summary display purposes
     :param moduleMap: map of module name to the module object
+    :param commandPrefix: list of command-line arguments to prepend
     :return: a TestResults object summarizing the results from the modules
     '''
     results = TestResults(packageName)
