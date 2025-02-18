@@ -1,6 +1,6 @@
-'''Test the behaviors of the util.testing module
+'''Test the behaviors of the dgutil.testing module
 
-These tests should not call util.testing functions directly since that would
+These tests should not call dgutil.testing functions directly since that would
 be a cyclic dependency. Rather, write tests that demonstrate the testing module
 is working correctly when it executes them.'''
 
@@ -28,7 +28,7 @@ def test_exception():
 out_exception = "some normal output"
 
 err_exception = '''
-Exception occurred during util.test.testing/test_exception: KeyError: 'missing'
+Exception occurred during dgutil.test.testing/test_exception: KeyError: 'missing'
 '''
 
 result_exception = None

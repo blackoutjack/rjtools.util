@@ -1,9 +1,9 @@
 
 import sys
 
-from util.msg import info, warn, err, dbg
-from util.type import type_check
-from util import fs
+from dgutil.msg import info, warn, err, dbg
+from dgutil.type import type_check
+from dgutil import fs
 
 
 class Logger:

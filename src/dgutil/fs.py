@@ -11,9 +11,9 @@ import os.path
 import sys
 import time
 
-from util.msg import dbg
+from dgutil.msg import dbg
 
-from util.test.testfs import files, Link
+from dgutil.test.testfs import files, Link
 
 class StandardFS:
 

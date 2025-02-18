@@ -1,6 +1,6 @@
 '''Test file system access wrapper in util.fs'''
 
-from util import fs
+from dgutil import fs
 
 def test_binary_basic():
     '''Open a file in binary mode and read the contents'''

@@ -1,6 +1,6 @@
 
-from util.testing import init_stubs, run_modules
-from util import fs
+from dgutil.testing import init_stubs, run_modules
+from dgutil import fs
 
 def run():
     from . import convert

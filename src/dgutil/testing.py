@@ -18,9 +18,9 @@ from difflib import Differ
 from functools import reduce
 import shlex
 
-from util.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
-from util.testutil import Grep, JSONFilter
-from util.type import type_check, empty
+from dgutil.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
+from dgutil.testutil import Grep, JSONFilter
+from dgutil.type import type_check, empty
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.

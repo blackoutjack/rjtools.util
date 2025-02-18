@@ -8,8 +8,8 @@ import json
 import traceback
 import random
 
-from util.msg import warn, dbg
-from util.file import insert_suffix_into_filename
+from dgutil.msg import warn, dbg
+from dgutil.file import insert_suffix_into_filename
 
 def get_test_token():
     return "%d" % random.randrange(10000000)

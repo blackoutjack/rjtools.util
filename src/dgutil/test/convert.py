@@ -1,7 +1,7 @@
 '''Test conversion functions in the util.convert module'''
 
 from datetime import datetime
-from util.convert import parse_date, parse_user_date, parse_nonnumeric, parse_numeric, amount_to_grams
+from dgutil.convert import parse_date, parse_user_date, parse_nonnumeric, parse_numeric, amount_to_grams
 
 def test_numeric_empty():
     '''Test exception thrown when input is the empty string'''
