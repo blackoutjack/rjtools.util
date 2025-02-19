@@ -1,21 +1,22 @@
-#
-# Wrap filesystem access to allow redirection
-#
-# Includes wrappers for `open` and relevant `os[.path]` methods and that also
-# hit the fs.
-#
+"""
+Filesystem access wrapper to support redirection
+
+Includes wrappers for `open` and relevant `os[.path]` methods and that also
+hit the fs.
+"""
 
 import io
 import os
-import os.path
 import sys
 import time
 
-from dgutil.msg import dbg
+from dgutil.test.testfs import files as stubfiles, Link
 
-from dgutil.test.testfs import files, Link
 
 class StandardFS:
+    """
+    Simple wrappers calling the standard `os[.path]` methods.
+    """
 
     def binary_open(self, filepath):
         return open(filepath, 'rb')
@@ -40,27 +41,30 @@ class StandardFS:
 
     def walk(self, path):
         return os.walk(path)
- 
+
     def get_modify_time(self, path):
-        return os.path.getmtime(path)       
+        return os.path.getmtime(path)
 
     def get_real_path(self, path, strict=False):
         return os.path.realpath(path, strict=strict)
 
-# %%% Move this to its own file
+
 class StubFS:
+    """
+    Present in-memory data as a filesystem
+    """
 
     # Process startup time (approx.) for `getmtime` mock
     startTime = time.time()
 
     def is_file_content(self, val):
-        return type(val) is bytes
+        return isinstance(val, bytes)
 
     def is_directory_content(self, val):
-        return type(val) is dict
+        return isinstance(val, dict)
 
     def is_symlink_content(self, val):
-        return type(val) is Link
+        return isinstance(val, Link)
 
     def resolve(self, path):
 
@@ -77,37 +81,39 @@ class StubFS:
 
         # Tracks the value we've resolved to so far
         # %%% Allow the client to indicate the fs contents
-        cur = files
+        cur = stubfiles
         for part in parts:
             if self.is_file_content(cur):
-                # We resolved a file, now trying to resolve another path segment
+                # Resolved a file, now trying to resolve another path segment
                 raise NotADirectoryError(
-                    "[Errno 20] Not a directory: '%s'" % cur)
+                    f"[Errno 20] Not a directory: '{cur}'")
 
             if self.is_directory_content(cur):
                 if part not in cur:
                     raise FileNotFoundError(
-                        "[Errno 2] No such file or directory: '%s'" % path)
+                        f"[Errno 2] No such file or directory: '{path}'")
                 cur = cur[part]
                 prefix = os.path.join(prefix, part)
 
             elif self.is_symlink_content(cur):
                 prefix, cur = self.resolve(cur.target)
             else:
-                raise ValueError("Unexpected type in mock filesystem: %r"
-                    % type(cur))
-            
+                raise ValueError(
+                    f"Unexpected type in mock filesystem: {type(cur)}")
+
         return prefix, cur
 
     def binary_open(self, filepath):
         path, contents = self.resolve(filepath)
-        if type(contents) == dict:
+        if isinstance(contents, dict):
             # The filepath pointed to a directory.
-            raise IsADirectoryError("[Errno 21] Is a directory: '%s'" % path)
+            raise IsADirectoryError(f"[Errno 21] Is a directory: '{path}'")
         return io.BytesIO(contents)
-        
+
     def text_open(self, filepath):
-        return io.TextIOWrapper(self.binary_open(filepath), sys.getdefaultencoding())
+        return io.TextIOWrapper(
+            self.binary_open(filepath),
+            sys.getdefaultencoding())
 
     def text_open_utf8(self, filepath):
         return io.TextIOWrapper(self.binary_open(filepath), 'utf-8')
@@ -127,7 +133,7 @@ class StubFS:
     def unlink(self, path):
         dirname = os.path.dirname(path)
         filename = os.path.basename(path)
-        dirpath, thedir = self.resolve(dirname)
+        _, thedir = self.resolve(dirname)
         del thedir[filename]
 
     def get_modify_time(self, path):
@@ -135,7 +141,7 @@ class StubFS:
 
     def walk(self, path):
         _, base = self.resolve(path)
-        if type(base) == str:
+        if isinstance(base, str):
             return
 
         def do_walk(self, path):
@@ -154,54 +160,95 @@ class StubFS:
                     subdirs.append(sub)
                 else:
                     raise ValueError("Not handling links in walk yet")
-                    
+
             yield base, subdirs, files
 
             for subdir in subdirs:
                 # %%% Unnecessary complexity due to always resolving from `/`
                 subpath = os.path.join(base, subdir)
                 yield from do_walk(self, subpath)
-        
-        return do_walk(self, path)
+
+        do_walk(self, path)
+        return
 
     def get_real_path(self, path, strict=False):
-        # %%% Review
         return path
 
+
 fs = StandardFS()
+
+
+"""
+Top-level functions to call into the current fs instance
+"""
+
 
 def use_stubs():
     global fs
     if not isinstance(fs, StubFS):
         fs = StubFS()
 
+
 def binary_open(filepath):
     return fs.binary_open(filepath)
 
+
 def text_open(filepath):
     return fs.text_open(filepath)
-    
+
+
 def text_open_utf8(filepath):
     return fs.text_open_utf8(filepath)
+
 
 def is_file(path):
     return fs.is_file(path)
 
+
 def is_dir(path):
     return fs.is_dir(path)
+
 
 def is_link(path):
     return fs.is_link(path)
 
+
 def unlink(path):
     fs.unlink(path)
+
 
 def walk(path):
     return fs.walk(path)
 
+
 def get_modify_time(path):
     return fs.get_modify_time(path)
 
+
 def get_real_path(path, strict=False):
     return fs.get_real_path(path, strict)
-            
+
+
+"""
+Other utility functions
+"""
+
+def insert_suffix_into_filename(filepath, suffix):
+    """
+    Inject the given suffix into the filename prior to the extension.
+
+    :param filepath: the path or filename to insert `suffix` into
+    :param suffix: suffix to insert
+    """
+    base, ext = os.path.splitext(filepath)
+    return f"{base}{suffix}{ext}"
+
+def is_root(filepath):
+    """
+    Detect whether the given path is the root of the filesystem
+
+    :param filepath: the path or filename to insert `suffix` into
+    """
+    realpath = get_real_path(filepath, strict=False)
+    return realpath == os.path.dirname(realpath)
+

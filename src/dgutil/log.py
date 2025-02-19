@@ -1,13 +1,22 @@
-
-import sys
+"""
+Logging utility to support multiplexing and redirection
+"""
 
 from dgutil.msg import info, warn, err, dbg
-from dgutil.type import type_check
 from dgutil import fs
 
 
 class Logger:
-    def __init__(self, stdoutFiles=None, stderrFiles=None, debugFiles=None, suppressStandard=False):
+    """
+    Provides various levels of logging to potentially multiple destinations
+    """
+
+    def __init__(
+            self,
+            stdoutFiles=None,
+            stderrFiles=None,
+            debugFiles=None,
+            suppressStandard=False):
         if stdoutFiles is None: stdoutFiles = []
         if stderrFiles is None: stderrFiles = []
         if debugFiles is None: debugFiles = []
@@ -16,9 +25,9 @@ class Logger:
         if not isinstance(debugFiles, list): debugFiles = [debugFiles]
         self.suppress_standard = suppressStandard
 
-        self.stdoutFiles=stdoutFiles
-        self.stderrFiles=stderrFiles
-        self.debugFiles=debugFiles
+        self.stdoutFiles = stdoutFiles
+        self.stderrFiles = stderrFiles
+        self.debugFiles = debugFiles
 
     def _load_files(self, filepaths):
         for filepath in filepaths:
@@ -48,4 +57,3 @@ class Logger:
             err(msg, indent=indent, target=target)
         if not self.suppress_standard:
             err(msg, indent=indent)
-

@@ -1,4 +1,9 @@
+"""
+Data types and schema class for constructing a database wrapper
+"""
+
 from enum import Flag, auto
+
 
 class DataType(Flag):
     AUTOID = auto()
@@ -10,6 +15,7 @@ class DataType(Flag):
     TIMESTAMP = auto()
     CREATETIMESTAMP = auto()
     AUTOTIMESTAMP = auto()
+
 
 class TableSchema:
     def __init__(self, name, columnDefs, keyNames, indexes=[], headerRowNum=1):

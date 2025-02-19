@@ -3,25 +3,36 @@
 These utilities are not contained in util.testing since that would potentially
 cause a circular dependency.
 '''
-import os
 import json
-import traceback
 import random
 
-from dgutil.msg import warn, dbg
-from dgutil.file import insert_suffix_into_filename
 
 def get_test_token():
+    """
+    Get a pseudo-random token to test data flowing in and out of storage
+
+    :return: a pseudo-random token
+    :rtype: str
+    """
     return "%d" % random.randrange(10000000)
 
-# Wrap expected output in this class to search for the term in the output rather
-# than matching the entire string.
+
 class Grep:
+    """
+    Wrap expected output in this class to search for the term in the output
+    rather than matching the entire string.
+    """
+
     def __init__(self, search):
         # String to search for
         self.search = search
 
+
 class JSONFilter:
+    """
+    Filter JSON output by removing certain keys
+    """
+
     def __init__(self, remove, text):
         # JSON attributes to remove
         self.remove = remove
@@ -34,6 +45,9 @@ class JSONFilter:
 
 
 def filterJSONRecursive(jsonObj, keysToRemove):
+    """
+    Recursively remove keys from a JSON object
+    """
     if isinstance(jsonObj, dict):
         for key in keysToRemove:
             if key in jsonObj:
@@ -41,7 +55,6 @@ def filterJSONRecursive(jsonObj, keysToRemove):
         for key, value in jsonObj.items():
             jsonObj[key] = filterJSONRecursive(value, keysToRemove)
     elif isinstance(jsonObj, list):
-        for i in range(len(jsonObj)):
-            jsonObj[i] = filterJSONRecursive(jsonObj[i], keysToRemove)
+        for i, subObj in enumerate(jsonObj):
+            jsonObj[i] = filterJSONRecursive(subObj, keysToRemove)
     return jsonObj
-

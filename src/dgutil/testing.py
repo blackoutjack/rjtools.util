@@ -4,18 +4,15 @@ import sys
 import json
 import os
 import re
-import random
 import subprocess
 import traceback
-from types import ModuleType
-import threading
-from threading import Thread, Condition, RLock
+from types import ModuleType, FunctionType
+from threading import Thread, RLock
 from io import TextIOWrapper, BytesIO
-from optparse import OptionParser
+from argparse import ArgumentParser
 from queue import Queue
 from pathlib import Path
 from difflib import Differ
-from functools import reduce
 import shlex
 
 from dgutil.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
@@ -88,16 +85,17 @@ class TestResults:
         # Producing output needs the lock to ensure redirection isn't in effect
         redirect_lock.acquire()
         initial = "%s: ran %d test%s" % (
-                self.name,
-                self.total,
-                s_if_plural(self.total)
-            )
+            self.name,
+            self.total,
+            s_if_plural(self.total)
+        )
         if self.failures > 0:
             warn("%s, %d failure%s"
                 % (initial, self.failures, s_if_plural(self.failures)))
         else:
             print("%s, all successful" % initial)
         redirect_lock.release()
+
 
 def summarize_results(name, *results):
     '''Produce a summary TestResults object from the given results
@@ -117,6 +115,7 @@ def summarize_results(name, *results):
         summary.code = max([result.code for result in results])
     return summary
 
+
 def cull_debug_lines(lines, std):
     '''Remove lines formatted like debug output, and print them to a stream
 
@@ -133,10 +132,11 @@ def cull_debug_lines(lines, std):
             out += line
     return out
 
+
 def cull_debug_text(text, std):
     '''Remove text formatted like debug output, and print it to a stream
 
-    Allows tests to run with -g without false failures due to extraneous output.
+    Allow tests to run with -g without false failures due to extraneous output.
     :param lines: a string of text
     :param std: output stream to print the culled debug text
     :return: the text without debug content
@@ -144,8 +144,11 @@ def cull_debug_text(text, std):
     lines = text.splitlines(keepends=True)
     return cull_debug_lines(lines, std)
 
+
 class Redirect(TextIOWrapper):
-    "Manages the redirection and restoration of stdout and stderr"
+    """
+    Manages the redirection and restoration of stdout and stderr
+    """
 
     def __init__(self):
         self.real_stdout = sys.stdout
@@ -174,11 +177,13 @@ class Redirect(TextIOWrapper):
         sys.stdout = self.real_stdout
         sys.stderr = self.real_stderr
 
+
 def init_testing():
-    parser = OptionParser(usage="python3 -m [MODULE].test [-g]")
-    parser.add_option("-g", "--debug", action="store_true", dest="debug",
-                  help="debug information from failed tests")
-    options, args = parser.parse_args()
+    parser = ArgumentParser(usage="python3 -m [MODULE].test [-g]")
+    parser.add_argument("-g", "--debug", action="store_true", dest="debug",
+        help="debug information from failed tests")
+    options = parser.parse_args()
+
     if options.debug:
         set_debug(True)
 
@@ -186,10 +191,11 @@ def init_testing():
 def init_stubs(stubs=None):
     # Install stubs/mocks
     if stubs is not None:
-        if type(stubs) is not list:
+        if not isinstance(stubs, list):
             stubs = [stubs]
         for stub in stubs:
             stub.use_stubs()
+
 
 def print_expected_actual_mismatch(
         testId,
@@ -207,7 +213,7 @@ def print_expected_actual_mismatch(
 
     header = "%s%s%s%s%s" % (
         "%s\n" % testId,
-        '' if command is None else "%s\n" % (command),
+        '' if empty(command) is None else "%s\n" % (command),
         '' if empty(expected) else "--- <%s%s%s>" % (COLOR["RED"], expectedTitle, COLOR["HEADER"]),
         '' if empty(expected) or empty(actual) else ', ',
         '' if empty(actual) else "+++ <%s%s%s>" % (COLOR["GREEN"], actualTitle, COLOR["HEADER"])
@@ -228,6 +234,7 @@ def print_expected_actual_mismatch(
     print_divider()
 
     print_error("%s" % diffText)
+
 
 def check_code(mod, testName, expectedVarname, code, command=None):
     result = True
@@ -256,6 +263,7 @@ def check_code(mod, testName, expectedVarname, code, command=None):
         result = False
     return result
 
+
 def check_result(mod, testName, expectedVarname, testResult, command=None):
     checkResult = True
     testId = get_test_identifier(mod, testName)
@@ -283,8 +291,10 @@ def check_result(mod, testName, expectedVarname, testResult, command=None):
         checkResult = False
     return checkResult
 
+
 def get_test_identifier(mod, testName):
     return "%s/%s" % (mod.__name__, testName)
+
 
 def check_output(mod, testName, expectedVarname, output, streamName, command=None):
     testId = get_test_identifier(mod, testName)
@@ -376,6 +386,7 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
 
     return result
 
+
 def run_test(mod, testName):
     '''Run a test that executes code to validate behavior
 
@@ -423,6 +434,7 @@ def run_test(mod, testName):
 
     return result
 
+
 def check_process_result(mod, testName, testPrefix, processResult, command=None):
     '''Validate results of a test that ran as a subprocess
 
@@ -459,6 +471,7 @@ def check_process_result(mod, testName, testPrefix, processResult, command=None)
         result = False
 
     return result
+
 
 def run_subprocess(mod, testName, commandPrefix=None):
     '''Run a test that specifies arguments to run a subprocess
@@ -500,6 +513,7 @@ def run_subprocess(mod, testName, commandPrefix=None):
         SUBPROCESS_TEST_PREFIX,
         processResult,
         commandText)
+
 
 def run_batch(mod, testName, commandPrefix=None):
     '''Run a batch test that reads stdin to perform a series of operations
@@ -549,20 +563,24 @@ def run_batch(mod, testName, commandPrefix=None):
         BATCH_TEST_PREFIX,
         processResult)
 
+
 def print_exception(exception):
     redirect_lock.acquire()
     traceback.print_exception(exception)
     redirect_lock.release()
+
 
 def print_divider():
     redirect_lock.acquire()
     info("===================================")
     redirect_lock.release()
 
+
 def print_error(msg):
     redirect_lock.acquire()
     err(msg)
     redirect_lock.release()
+
 
 def print_result(packageName, modName, testName, result):
     # Producing output needs the lock to ensure redirection isn't in effect
@@ -571,12 +589,15 @@ def print_result(packageName, modName, testName, result):
     else: print_fail(packageName, modName, testName)
     redirect_lock.release()
 
+
 def print_pass(packageName, modName, testName):
     print("%s/%s.%s: pass" % (packageName, modName, testName))
+
 
 def print_fail(packageName, modName, testName):
     print("%s/%s.%s: FAIL" % (packageName, modName, testName))
     print_divider()
+
 
 def copy_store_to_mirror(sourceOption, targetOption):
     venvActivate = os.path.join(Path.home(), ".venvs", "shrem", "bin", "activate")
@@ -592,6 +613,7 @@ def copy_store_to_mirror(sourceOption, targetOption):
     code = processResult.returncode
     if code != 0:
         err("Failed to copy store %s to mirror %s" % (sourceOption, targetOption))
+
 
 def initialize_dynamic_test_stores(testPackages):
     '''Copy source files/databases to associated mirrors for testing'''
@@ -618,6 +640,7 @@ def initialize_dynamic_test_stores(testPackages):
     for testStoreOption, mirrorStoreOption in storeMap.items():
         copy_store_to_mirror(testStoreOption, mirrorStoreOption)
 
+
 def clean_dynamic_test_stores(dynamicTestStores):
     '''Remove dynamically-created test files'''
     dbg("IN CLEAN DYNAMIC TEST STORES: %r" % dynamicTestStores)
@@ -627,13 +650,16 @@ def clean_dynamic_test_stores(dynamicTestStores):
     if "TESTING_URL_MIRROR_MAP" in os.environ:
         del os.environ["TESTING_URL_MIRROR_MAP"]
 
+
 def wait_condition():
     return redirect is None
+
 
 def redirect_output():
     global redirect, redirect_lock
     redirect_lock.acquire()
     redirect = Redirect()
+
 
 def restore_output():
     global redirect, redirect_lock
@@ -645,6 +671,7 @@ def restore_output():
     redirect_lock.release()
 
     return out, errout
+
 
 def run_module(mod, packageName, results, commandPrefix=None):
     '''
@@ -688,6 +715,7 @@ def run_module(mod, packageName, results, commandPrefix=None):
         module_lock.release()
         if not result: results.add_failure()
         else: results.add_success()
+
 
 def run_modules(packageName, moduleMap, commandPrefix=None):
     '''Run a set of test modules and print cumulative results.
@@ -749,6 +777,7 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
     results.print()
 
     return results
+
 
 def run_package(package, results):
     try:
@@ -825,6 +854,7 @@ def run_packages(suiteName, packageMap):
     summary.print()
     return summary
 
+
 def run_suite():
     '''Encapsulates the boilerplate needed to run a test suite from __main__.py
 
@@ -841,9 +871,10 @@ def run_suite():
     mainmod = sys.modules["__main__"]
 
     initialize_dynamic_test_stores(mainmod)
+    if not isinstance(mainmod.run, FunctionType):
+        raise ValueError(f"No 'run' function found in module {mainmod.__name__}")
 
     init_testing()
     result = mainmod.run()
 
     sys.exit(result.code)
-
