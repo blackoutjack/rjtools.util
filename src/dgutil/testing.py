@@ -15,9 +15,9 @@ from pathlib import Path
 from difflib import Differ
 import shlex
 
-from dgutil.msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
-from dgutil.testutil import Grep, JSONFilter
-from dgutil.type import type_check, empty
+from .msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
+from .testutil import Grep, JSONFilter
+from .type import type_check, empty
 
 # Toggle parallel running of test modules. Test cases within a module are
 # always run in the order they are defined in the module.
@@ -188,13 +188,10 @@ def init_testing():
         set_debug(True)
 
 
-def init_stubs(stubs=None):
-    # Install stubs/mocks
-    if stubs is not None:
-        if not isinstance(stubs, list):
-            stubs = [stubs]
-        for stub in stubs:
-            stub.use_stubs()
+def init_mocks(mockfs, mockfiles):
+    # Install mocks
+    if mockfs is not None:
+        mockfs.use_mocks(mockfiles)
 
 
 def print_expected_actual_mismatch(
@@ -673,7 +670,7 @@ def restore_output():
     return out, errout
 
 
-def run_module(mod, packageName, results, commandPrefix=None):
+def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
     '''
     Invoke all tests in a module and print individual results.
 

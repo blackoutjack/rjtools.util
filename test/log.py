@@ -2,7 +2,7 @@
 
 '''
 
-from dgutil.log import Logger
+from src.dgutil.log import Logger
 
 defaultLogger = Logger()
 

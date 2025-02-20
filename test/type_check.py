@@ -1,7 +1,7 @@
 '''Test the type examination functionality in util.type'''
 
-from dgutil.msg import err
-from dgutil.type import type_check
+from src.dgutil.msg import err
+from src.dgutil.type import type_check
 
 def test_basic():
     '''Test a basic type check for an integer'''

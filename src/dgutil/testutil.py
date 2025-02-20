@@ -16,6 +16,12 @@ def get_test_token():
     """
     return "%d" % random.randrange(10000000)
 
+class Link:
+    """
+    Represents a symlink within a mock filesystem
+    """
+    def __init__(self, target):
+        self.target = target
 
 class Grep:
     """

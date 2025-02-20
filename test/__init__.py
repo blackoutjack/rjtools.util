@@ -1,6 +1,8 @@
 
-from dgutil.testing import init_stubs, run_modules
-from dgutil import fs
+from src.dgutil.testing import init_mocks, run_modules
+from src.dgutil import fs
+
+from .testfs import files as mockfiles
 
 def run():
     from . import convert
@@ -9,7 +11,7 @@ def run():
     from . import testing
     from . import log
 
-    init_stubs(fs)
+    init_mocks(fs, mockfiles)
 
     return run_modules("util", locals())
 

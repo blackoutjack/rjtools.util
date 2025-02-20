@@ -1,9 +1,5 @@
 '''Mock filesystem contents for testing the util.fs module'''
 
-class Link:
-    def __init__(self, target):
-        self.target = target
-
 files = {
     "topdir": {
         "filetree": {

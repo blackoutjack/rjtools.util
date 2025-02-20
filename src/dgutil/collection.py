@@ -1,9 +1,7 @@
-"""
-Utility functions for working with collection types.
-"""
+"""Utility functions for working with collection types."""
 
 
-def update_multimap(multimap, key, value):
+def update_multimap(multimap:dict, key, value):
     """
     Add a value to a multimap
 

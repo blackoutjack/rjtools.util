@@ -2,8 +2,8 @@
 Logging utility to support multiplexing and redirection
 """
 
-from dgutil.msg import info, warn, err, dbg
-from dgutil import fs
+from .msg import info, warn, err, dbg
+from . import fs
 
 
 class Logger:

@@ -10,8 +10,7 @@ import os
 import sys
 import time
 
-from dgutil.test.testfs import files as stubfiles, Link
-
+from .testutil import Link
 
 class StandardFS:
     """
@@ -53,6 +52,10 @@ class StubFS:
     """
     Present in-memory data as a filesystem
     """
+    def __init__(self, mockfiles=None):
+        if mockfiles is None:
+            mockfiles = {}
+        self.mockfiles = mockfiles
 
     # Process startup time (approx.) for `getmtime` mock
     startTime = time.time()
@@ -80,8 +83,7 @@ class StubFS:
         # Starting at the fs root, resolve the file/directory contents
 
         # Tracks the value we've resolved to so far
-        # %%% Allow the client to indicate the fs contents
-        cur = stubfiles
+        cur = self.mockfiles
         for part in parts:
             if self.is_file_content(cur):
                 # Resolved a file, now trying to resolve another path segment
@@ -183,11 +185,9 @@ Top-level functions to call into the current fs instance
 """
 
 
-def use_stubs():
+def use_mocks(mockfiles):
     global fs
-    if not isinstance(fs, StubFS):
-        fs = StubFS()
-
+    fs = StubFS(mockfiles)
 
 def binary_open(filepath):
     return fs.binary_open(filepath)
