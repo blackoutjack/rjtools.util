@@ -97,7 +97,7 @@ class StubFS:
 
 
 fs = ...
-def use_mocks(mockfiles): # -> None:
+def install_mocks(mockfiles): # -> None:
     ...
 
 def binary_open(filepath): # -> BufferedReader | BytesIO:
