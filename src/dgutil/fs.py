@@ -179,13 +179,12 @@ class StubFS:
 
 fs = StandardFS()
 
-
 """
 Top-level functions to call into the current fs instance
 """
 
 
-def use_mocks(mockfiles):
+def install_mocks(mockfiles):
     global fs
     fs = StubFS(mockfiles)
 

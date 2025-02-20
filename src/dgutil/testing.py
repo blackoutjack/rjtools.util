@@ -188,12 +188,6 @@ def init_testing():
         set_debug(True)
 
 
-def init_mocks(mockfs, mockfiles):
-    # Install mocks
-    if mockfs is not None:
-        mockfs.use_mocks(mockfiles)
-
-
 def print_expected_actual_mismatch(
         testId,
         expected,
