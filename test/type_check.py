@@ -1,4 +1,4 @@
-'''Test the type examination functionality in util.type'''
+'''Test the type examination functionality in dgutil.type'''
 
 from src.dgutil.msg import err
 from src.dgutil.type import type_check

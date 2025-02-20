@@ -1,4 +1,4 @@
-'''Test behaviors of the util.logging module
+'''Test behaviors of the dgutil.logging module
 
 '''
 

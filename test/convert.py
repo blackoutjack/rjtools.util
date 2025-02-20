@@ -1,4 +1,4 @@
-'''Test conversion functions in the util.convert module'''
+'''Test conversion functions in the dgutil.convert module'''
 
 from src.dgutil.convert import parse_date, parse_user_date, parse_nonnumeric, parse_numeric, amount_to_grams
 

@@ -1,4 +1,4 @@
-'''Mock filesystem contents for testing the util.fs module'''
+'''Mock filesystem contents for testing the dgutil.fs module'''
 
 files = {
     "topdir": {

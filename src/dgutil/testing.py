@@ -714,7 +714,7 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
     This function is the entry point to be called from __init__.py in the
     package directory defining a suite of test modules. Typical boilerplate is:
 
-        from util.testing import run_modules
+        from dgutil.testing import run_modules
 
         def run():
             from . import mytestmodule
@@ -794,7 +794,7 @@ def run_packages(suiteName, packageMap):
     This function is the entrypoint for a test suite to invoke test packages
         it contains, via the package's __init__.py file. Typical boilerplate is:
 
-        from util.testing import run_packages
+        from dgutil.testing import run_packages
 
         def run():
             from . import unit
@@ -852,7 +852,7 @@ def run_suite():
     For any test suite/package, the following code is all that's needed in
     __main__.py:
 
-        from util.testing import run_suite
+        from dgutil.testing import run_suite
         from . import run
         run_suite()
 

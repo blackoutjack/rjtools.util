@@ -1,4 +1,4 @@
-'''Test file system access wrapper in util.fs'''
+'''Test file system access wrapper in dgutil.fs'''
 
 from src.dgutil import fs
 

@@ -13,5 +13,5 @@ def run():
 
     fs.install_mocks(mockfiles)
 
-    return run_modules("util", locals())
+    return run_modules("dgutil", locals())
 
