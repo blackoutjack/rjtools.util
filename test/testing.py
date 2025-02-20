@@ -28,7 +28,7 @@ def test_exception():
 out_exception = "some normal output"
 
 err_exception = '''
-Exception occurred during dgutil.test.testing/test_exception: KeyError: 'missing'
+Exception occurred during test.testing/test_exception: KeyError: 'missing'
 '''
 
 result_exception = None
