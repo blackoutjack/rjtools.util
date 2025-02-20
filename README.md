@@ -10,7 +10,7 @@ Python library containing various logging and testing utilities
 
 To include `rjtools.util` in your project, add this line to `requirements.txt`
 
-    -e git+https://github/blackoutjack/rjtools.util@0.0.1#egg=util
+    -e git+https://github.com/blackoutjack/rjtools.util@0.0.1#egg=util
 
 ## The `testing` framework
 
