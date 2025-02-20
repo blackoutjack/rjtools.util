@@ -1,6 +1,6 @@
 '''Functions to be called from applications to help support testing
 
-These utilities are not contained in dgutil.testing since that would potentially
+These utilities are not contained in rjtools.util.testing since that would potentially
 cause a circular dependency.
 '''
 import json

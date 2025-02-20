@@ -1,6 +1,6 @@
 
-from src.dgutil.testing import run_modules
-from src.dgutil import fs
+from src.rjtools.util.testing import run_modules
+from src.rjtools.util import fs
 
 from .testfs import files as mockfiles
 
@@ -13,5 +13,5 @@ def run():
 
     fs.install_mocks(mockfiles)
 
-    return run_modules("dgutil", locals())
+    return run_modules("rjtools.util", locals())
 

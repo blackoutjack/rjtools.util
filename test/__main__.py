@@ -1,5 +1,5 @@
 
-from src.dgutil.testing import run_suite
+from src.rjtools.util.testing import run_suite
 from . import run
 
 run_suite()

@@ -1,8 +1,8 @@
-'''Test behaviors of the dgutil.logging module
+'''Test behaviors of the rjtools.util.logging module
 
 '''
 
-from src.dgutil.log import Logger
+from src.rjtools.util.log import Logger
 
 defaultLogger = Logger()
 

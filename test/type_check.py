@@ -1,7 +1,7 @@
-'''Test the type examination functionality in dgutil.type'''
+'''Test the type examination functionality in rjtools.util.type'''
 
-from src.dgutil.msg import err
-from src.dgutil.type import type_check
+from src.rjtools.util.msg import err
+from src.rjtools.util.type import type_check
 
 def test_basic():
     '''Test a basic type check for an integer'''

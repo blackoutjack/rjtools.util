@@ -1,6 +1,6 @@
 [project]
-name = "dgutil"
-dynamic = ["version"]
+name = "util"
+version = "0.0.1"
 authors = [
     { name="Rich Joiner", email="rich@deerhoofgardens.com" },
 ]
@@ -10,4 +10,4 @@ requires-python = ">=3.12"
 license = { file = "LICENSE.txt" }
 
 [project.urls]
-Homepage = "https://github.com/blackoutjack/dgutil"
+Homepage = "https://github.com/blackoutjack/rjtools.util"
