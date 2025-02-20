@@ -1,4 +1,4 @@
-# dgutil: a multithreaded Python testing library
+# rjtools.util: a multithreaded Python testing library
 
 Python library containing various logging and testing utilities
 
@@ -8,14 +8,14 @@ Python library containing various logging and testing utilities
 
 ## Installation
 
-To include `dgutils` in your project, add this line to `requirements.txt`
+To include `rjtools.util` in your project, add this line to `requirements.txt`
 
-    -e git+https://github/blackoutjack/dgutil@0.1.0#egg=dgutil
+    -e git+https://github/blackoutjack/rjtools.util@0.0.1#egg=util
 
 ## The `testing` framework
 
-The `dgutil.testing` module implements a multithreaded test harness for python
-modules. See the [`testing.py`](src/dgutil/testing.py) for documentation
+The `rjtools.util.testing` module implements a multithreaded test harness for python
+modules. See the [`testing.py`](src/rjtools/util/testing.py) for documentation
 explaining the usage.
 
 A prototypical test suite will include a structure like the following
@@ -28,10 +28,10 @@ A prototypical test suite will include a structure like the following
 ```
 
 The `__init__.py` must contain a `run` function that imports the desired test
-modules and passes them to `dgutil.testing.run_modules`.
+modules and passes them to `rjtools.util.testing.run_modules`.
 
 ``` py title="test/__init__.py"
-from dgutil.testing import run_modules
+from rjtools.util.testing import run_modules
 
 def run():
     from . import testmodule1
