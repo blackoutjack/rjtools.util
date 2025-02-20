@@ -1,5 +1,14 @@
 [project]
-dynamic = ["version"]
 name = "dgutil"
-dependencies = []
+dynamic = ["version"]
+authors = [
+    { name="Rich Joiner", email="rich@deerhoofgardens.com" },
+]
+description = "A library of utilities for logging and testing Python apps"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE.txt"]
 
+[project.urls]
+Homepage = "https://github.com/blackoutjack/dgutil"
