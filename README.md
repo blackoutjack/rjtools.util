@@ -55,7 +55,7 @@ and produced this output
 '''
 ```
 
-A test fails if the output does not match (module 1 line break before or after)
+A test fails if the output does not match (modulo one line break before or after)
 and similar checks are done based on any `err_`.
 
 Other capabilities including support for unit testing are also included in the
