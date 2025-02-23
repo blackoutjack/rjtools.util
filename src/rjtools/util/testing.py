@@ -591,13 +591,15 @@ def print_fail(packageName, modName, testName):
 
 
 def copy_store_to_mirror(sourceOption, targetOption):
+    """Create a copy of the data store for the testsuite to run on."""
+
+    # %%% This needs to be abstracted out to a plugin, or link directly into
+    # %%% storeconverter.
     venvActivate = os.path.join(Path.home(), ".venvs", "shrem", "bin", "activate")
     shremDir = os.path.join(Path.home(), "lib", "shrem")
 
-    # %%% Hack to avoid breaking prod during development
-    convertArg = "convert" if "NEWCONVERT" in os.environ else "--convert"
     # %%% Requires running with virtualenv already activated.
-    args = ["python", "-m", "shrem", convertArg, "--store", sourceOption, "--target", targetOption]
+    args = ["python", "-m", "shrem", "convert", "--store", sourceOption, "--target", targetOption]
 
     dbg("Running subprocess: '%s'" % "' '".join(args))
     processResult = subprocess.run(args)
