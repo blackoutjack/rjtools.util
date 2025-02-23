@@ -190,6 +190,7 @@ def init_testing():
 
 def print_expected_actual_mismatch(
         testId,
+        testPath,
         expected,
         actual,
         expectedTitle="Expected",
@@ -202,9 +203,10 @@ def print_expected_actual_mismatch(
     d = Differ()
     diff = d.compare(expected.splitlines(), actual.splitlines())
 
-    header = "%s%s%s%s%s" % (
+    header = "%s%s%s%s%s%s" % (
         "%s\n" % testId,
-        '' if empty(command) is None else "%s\n" % (command),
+        '' if empty(command) else "%s\n" % (command),
+        '' if empty(testPath) else "file: %s\n" % (testPath),
         '' if empty(expected) else "--- <%s%s%s>" % (COLOR["RED"], expectedTitle, COLOR["HEADER"]),
         '' if empty(expected) or empty(actual) else ', ',
         '' if empty(actual) else "+++ <%s%s%s>" % (COLOR["GREEN"], actualTitle, COLOR["HEADER"])
@@ -230,12 +232,14 @@ def print_expected_actual_mismatch(
 def check_code(mod, testName, expectedVarname, code, command=None):
     result = True
     testId = get_test_identifier(mod, testName)
+    testPath = mod.__file__
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if code != expectedValue:
             print_divider()
             print_expected_actual_mismatch(
                 testId,
+                testPath,
                 "%r" % expectedValue,
                 "%r" % code,
                 expectedTitle="Expected return code",
@@ -247,6 +251,7 @@ def check_code(mod, testName, expectedVarname, code, command=None):
         # Got output when none was expected
         print_expected_actual_mismatch(
             testId,
+            testPath,
             None,
             str(code),
             actualTitle="Unexpected nonzero return code",
@@ -258,12 +263,14 @@ def check_code(mod, testName, expectedVarname, code, command=None):
 def check_result(mod, testName, expectedVarname, testResult, command=None):
     checkResult = True
     testId = get_test_identifier(mod, testName)
+    testPath = mod.__file__
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
         if testResult != expectedValue:
             print_divider()
             print_expected_actual_mismatch(
                 testId,
+                testPath,
                 "%r" % expectedValue,
                 "%r" % testResult,
                 expectedTitle="Expected result",
@@ -274,6 +281,7 @@ def check_result(mod, testName, expectedVarname, testResult, command=None):
         print_divider()
         print_expected_actual_mismatch(
             testId,
+            testPath,
             None,
             "%r" % testResult,
             actualTitle="False result",
@@ -289,6 +297,7 @@ def get_test_identifier(mod, testName):
 
 def check_output(mod, testName, expectedVarname, output, streamName, command=None):
     testId = get_test_identifier(mod, testName)
+    testPath = mod.__file__
     if expectedVarname in mod.__dict__:
         expectedValue = mod.__dict__[expectedVarname]
 
@@ -313,6 +322,7 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
             if not result:
                 print_expected_actual_mismatch(
                     testId,
+                    testPath,
                     searchVal,
                     output,
                     expectedTitle="Expected %s substring" % streamName,
@@ -356,6 +366,7 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
             if not result:
                 print_expected_actual_mismatch(
                     testId,
+                    testPath,
                     expectedValue,
                     output,
                     expectedTitle="Expected %s output" % streamName,
@@ -369,6 +380,7 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
         # Got output when none was expected
         print_expected_actual_mismatch(
             testId,
+            testPath,
             None,
             output,
             actualTitle="Unexpected %s output" % streamName,
