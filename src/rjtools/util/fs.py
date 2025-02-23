@@ -7,10 +7,12 @@ hit the fs.
 
 import io
 import os
+import stat
 import sys
 import time
 
 from .testutil import Link
+from .msg import err, info
 
 class StandardFS:
     """
@@ -46,6 +48,9 @@ class StandardFS:
 
     def get_real_path(self, path, strict=False):
         return os.path.realpath(path, strict=strict)
+
+    def get_file_size(self, path):
+        return os.stat(path).st_size
 
 
 class StubFS:
@@ -176,6 +181,9 @@ class StubFS:
     def get_real_path(self, path, strict=False):
         return path
 
+    def get_file_size(self, path):
+        filepath, contents = self.resolve(path)
+        return len(contents)
 
 fs = StandardFS()
 
@@ -250,4 +258,28 @@ def is_root(filepath):
     """
     realpath = get_real_path(filepath, strict=False)
     return realpath == os.path.dirname(realpath)
+
+def is_hidden(filepath):
+    filename = os.path.basename(filepath)
+    if filename.startswith('.'):
+        return True
+
+    # Windows. %%% Untested
+    try:
+        attributes = os.stat(filepath).st_mode
+        return bool(attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+    except AttributeError:
+        return None
+    except FileNotFoundError:
+        return None
+
+def is_empty(filepath):
+    try:
+        return fs.get_file_size(filepath) == 0
+    except (FileNotFoundError, PermissionError, NotADirectoryError, UnicodeEncodeError, OSError) as ex:
+        # Caller that doesn't care can take this as false.
+        # One who does can check.
+        err(str(ex))
+        return None
+
 

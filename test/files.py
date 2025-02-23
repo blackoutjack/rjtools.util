@@ -14,3 +14,10 @@ def test_text_basic():
     contents = fl.read()
     return contents == "some text here"
 
+def test_is_empty():
+    return fs.is_empty("/topdir/filetree/empty2.txt")
+
+def test_is_hidden():
+    return fs.is_hidden("/topdir/filetree/.hiddenrc")
+
+
