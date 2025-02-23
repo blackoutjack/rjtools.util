@@ -31,3 +31,33 @@ Exception occurred during test.testing/test_exception: KeyError: 'missing'
 '''
 
 result_exception = None
+
+
+"""Run a subprocess test (prefixed by "run_") check output."""
+run_basic_subprocess = ["echo", "this should be the output"]
+
+out_basic_subprocess = "this should be the output"
+
+
+# For the following tests, set the command accepting batch input.
+run_basic_stdin = ["cat"]
+
+"""Send batch input (prefixed by "batch_") check output."""
+in_basic_stdin = '''
+here is some content
+may it serve you well
+'''
+
+out_basic_stdin = '''
+here is some content
+may it serve you well
+'''
+
+run_failure_stdin = ["grep", "stringnotfound"]
+
+in_failure_stdin = '''
+input without the grepped-for string
+'''
+
+code_failure_stdin = 1
+

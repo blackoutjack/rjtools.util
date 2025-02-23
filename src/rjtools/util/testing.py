@@ -41,6 +41,7 @@ DISABLED_TESTS_SYMBOL = "DISABLED"
 # Prefixes of symbol names for defining expected output for test cases.
 INPROCESS_RESULT_PREFIX = "result_"
 SUBPROCESS_CODE_PREFIX = "code_"
+TEST_INPUT_PREFIX = "in_"
 TEST_OUTPUT_PREFIX = "out_"
 TEST_ERROR_PREFIX = "err_"
 
@@ -499,6 +500,12 @@ def run_subprocess(mod, testName, commandPrefix=None):
         type_check(commandPrefix, type([]), testName)
         args = commandPrefix + args
 
+    testSuffix = testName[len(SUBPROCESS_TEST_PREFIX):]
+    inputName = TEST_INPUT_PREFIX + testSuffix
+    inputValue = None
+    if inputName in mod.__dict__:
+        inputValue = mod.__dict__[inputName]
+
     # Pass along debug option
     if get_debug(): args.append("-g")
 
@@ -512,7 +519,11 @@ def run_subprocess(mod, testName, commandPrefix=None):
         return False
 
     dbg("Running subprocess: %s" % commandText)
-    processResult = subprocess.run(args, capture_output=True, env=os.environ)
+    if inputValue is None:
+        processResult = subprocess.run(args, capture_output=True, env=os.environ)
+    else:
+        inputBytes = inputValue.encode('UTF-8')
+        processResult = subprocess.run(args, capture_output=True, env=os.environ, input=inputBytes)
 
     # Matched to release() after print_result in caller.
     module_lock.acquire()
@@ -555,6 +566,8 @@ def run_batch(mod, testName, commandPrefix=None):
 
         commands = values[1]
 
+    spec = " ".join(args) + "\n" + commands.removeprefix("\n").removesuffix("\n")
+
     commands = commands.encode('utf-8')
 
     # Pass along debug option
@@ -571,7 +584,8 @@ def run_batch(mod, testName, commandPrefix=None):
         mod,
         testName,
         BATCH_TEST_PREFIX,
-        processResult)
+        processResult,
+        command=spec)
 
 
 def print_exception(exception):
@@ -704,7 +718,7 @@ def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
         dbg("Unexpected type for special symbol %s, ignoring" % DISABLED_TESTS_SYMBOL)
         disabled = []
 
-    extendedCommandPrefix = None if commandPrefix is None else commandPrefix.copy()
+    extendedCommandPrefix = [] if commandPrefix is None else commandPrefix.copy()
 
     symNames = vars(mod)
     for symName in symNames:
