@@ -25,9 +25,8 @@ def test_exception():
     print("some normal output")
     print("whoops: %s" % mymap["missing"])
 
-out_exception = "some normal output"
-
-err_exception = '''
+out_exception = '''
+some normal output
 Exception occurred during test.testing/test_exception: KeyError: 'missing'
 '''
 

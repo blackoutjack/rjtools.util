@@ -411,7 +411,7 @@ def run_test(mod, testName):
         exception = ex
         exceptionString = "%s: %s" % (ex.__class__.__name__, str(ex))
         print("Exception occurred during %s/%s: %s"
-            % (modName, testName, exceptionString), file=sys.stderr)
+            % (modName, testName, exceptionString), file=sys.stdout)
         testResult = None
     out, errout = restore_output()
 
@@ -569,7 +569,7 @@ def run_batch(mod, testName, commandPrefix=None):
 
 def print_exception(exception):
     redirect_lock.acquire()
-    traceback.print_exception(exception)
+    traceback.print_exception(exception, file=sys.stdout)
     redirect_lock.release()
 
 
@@ -581,7 +581,7 @@ def print_divider():
 
 def print_error(msg):
     redirect_lock.acquire()
-    err(msg)
+    err(msg, target=sys.stdout)
     redirect_lock.release()
 
 
