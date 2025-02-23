@@ -203,23 +203,30 @@ def print_expected_actual_mismatch(
     d = Differ()
     diff = d.compare(expected.splitlines(), actual.splitlines())
 
+    isatty = sys.stdout.isatty()
+    RED = COLOR["RED"] if isatty else ""
+    HEADER = COLOR["HEADER"] if isatty else ""
+    GREEN = COLOR["GREEN"] if isatty else ""
+    YELLOW = COLOR["YELLOW"] if isatty else ""
+    ENDC = COLOR["ENDC"] if isatty else ""
+
     header = "%s%s%s%s%s%s" % (
         "%s\n" % testId,
         '' if empty(command) else "%s\n" % (command),
         '' if empty(testPath) else "file: %s\n" % (testPath),
-        '' if empty(expected) else "--- <%s%s%s>" % (COLOR["RED"], expectedTitle, COLOR["HEADER"]),
+        '' if empty(expected) else "--- <%s%s%s>" % (RED, expectedTitle, HEADER),
         '' if empty(expected) or empty(actual) else ', ',
-        '' if empty(actual) else "+++ <%s%s%s>" % (COLOR["GREEN"], actualTitle, COLOR["HEADER"])
+        '' if empty(actual) else "+++ <%s%s%s>" % (GREEN, actualTitle, HEADER)
     )
 
-    lines = [COLOR["HEADER"] + header + COLOR["ENDC"]]
+    lines = [HEADER + header + ENDC]
     for line in diff:
         if line.startswith('+'):
-            lines.append(COLOR["GREEN"] + line + COLOR["ENDC"])
+            lines.append(GREEN + line + ENDC)
         elif line.startswith('-'):
-            lines.append(COLOR["RED"] + line + COLOR["ENDC"])
+            lines.append(RED + line + ENDC)
         elif line.startswith('?'):
-            lines.append(COLOR["YELLOW"] + line + COLOR["ENDC"])
+            lines.append(YELLOW + line + ENDC)
         else:
             lines.append(line)
     diffText = "\n".join(lines)
