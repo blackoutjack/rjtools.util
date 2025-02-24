@@ -771,6 +771,8 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
     print("%s: running tests" % packageName)
     redirect_lock.release()
 
+    moduleCount = len(moduleMap.values())
+
     if MULTITHREADED:
 
         q = Queue()
@@ -781,7 +783,7 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
                 run_module(mod, pkgName, res, commandPrefix)
                 q.task_done()
 
-        for threadNum in range(MODULE_THREAD_COUNT):
+        for threadNum in range(min(MODULE_THREAD_COUNT, moduleCount)):
             # Run test modules in parallel. (Individual tests within a
             # module run serially to allow for intramodule data dependency).
             t = Thread(
@@ -848,6 +850,8 @@ def run_packages(suiteName, packageMap):
     results = []
     threads = []
 
+    packageCount = len(packageMap.values())
+
     initialize_dynamic_test_stores(list(packageMap.values()))
 
     if MULTITHREADED:
@@ -859,7 +863,7 @@ def run_packages(suiteName, packageMap):
                 run_package(pkg, res)
                 q.task_done()
 
-        for threadNum in range(PACKAGE_THREAD_COUNT):
+        for threadNum in range(min(packageCount, PACKAGE_THREAD_COUNT)):
             t = Thread(
                 name="run_package%d" % threadNum,
                 target=worker,
