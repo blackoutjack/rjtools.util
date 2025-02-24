@@ -323,7 +323,7 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
         if "TEST_DIR" in mod.__dict__:
             output = output.replace(mod.__dict__["TEST_DIR"], "%TESTDIR%")
 
-        if type(expectedValue) is Grep:
+        if isinstance(expectedValue, Grep):
             searchVal = expectedValue.search
 
             # Run the check variants. If any succeed, the overall check passes.
