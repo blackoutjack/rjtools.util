@@ -1,19 +1,21 @@
 '''Utility functions and classes to support automated testing'''
 
-import sys
+from argparse import ArgumentParser
+from difflib import Differ
+from importlib import import_module, invalidate_caches
+import inspect
+from io import TextIOWrapper, BytesIO
 import json
 import os
+from pathlib import Path
+from queue import Queue
 import re
+import shlex
 import subprocess
+import sys
+from threading import Thread, RLock
 import traceback
 from types import ModuleType, FunctionType
-from threading import Thread, RLock
-from io import TextIOWrapper, BytesIO
-from argparse import ArgumentParser
-from queue import Queue
-from pathlib import Path
-from difflib import Differ
-import shlex
 
 from .msg import set_debug, get_debug, dbg, info, warn, err, s_if_plural
 from .testutil import Grep, JSONFilter
@@ -56,6 +58,8 @@ redirect = None
 redirect_lock = RLock()
 # For atomic blocks w.r.t. test module threads
 module_lock = RLock()
+# For updating sys.path
+syspath_lock = RLock()
 
 # Easy access to ANSI color escapes
 COLOR = {
@@ -91,10 +95,13 @@ class TestResults:
             s_if_plural(self.total)
         )
         if self.failures > 0:
-            warn("%s, %d failure%s"
-                % (initial, self.failures, s_if_plural(self.failures)))
-        else:
+            warn("%s, %d failure%s" % (
+                    initial, self.failures, s_if_plural(self.failures)
+                ), target=sys.stdout)
+        elif self.total > 0:
             print("%s, all successful" % initial)
+        else:
+            warn("No tests ran", target=sys.stdout)
         redirect_lock.release()
 
 
@@ -698,6 +705,41 @@ def restore_output():
 
     return out, errout
 
+def import_test_module(modName, pkgName=None):
+    """
+    Import test modules in an error-resilient manner.
+
+    To be called by test packages to import their modules, so that a syntax
+    or initialization error in the module does not blow up the whole pkg.
+
+    :param modName: str, the test module to import
+    :param pkgName: str|None, package name of the module
+    :return: the imported module, or `None` on failure
+    :rtype: ModuleType|None
+    """
+    callingPath = Path(inspect.stack()[1].filename).parent.as_posix()
+    added = False
+
+    syspath_lock.acquire()
+    if (callingPath not in sys.path):
+        added = True
+        sys.path.append(callingPath)
+
+    mod = None
+    try:
+        mod = import_module(modName, pkgName)
+    except SyntaxError as ex:
+        err(f"Detected syntax error in {modName}: {str(ex)}", target=sys.stdout)
+    except NameError as ex:
+        err(f"Bad reference in {modName}: {str(ex)}", target=sys.stdout)
+    except ImportError as ex:
+        err(f"Unable to import {modName}: {str(ex)}", target=sys.stdout)
+
+    if added:
+        sys.path.pop()
+    syspath_lock.release()
+
+    return mod
 
 def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
     '''
@@ -723,7 +765,9 @@ def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
     symNames = vars(mod)
     for symName in symNames:
         if symName in disabled:
-            dbg("Skipping disabled test: %s" % symName)
+            redirect_lock.acquire()
+            print(f"Skipping disabled test: {symName}")
+            redirect_lock.release()
             continue
         if symName == COMMAND_PREFIX_ADDITIONS:
             extendedCommandPrefix.extend(mod.__dict__[symName])
@@ -780,7 +824,12 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
         def worker(pkgName, res):
             while True:
                 mod = q.get()
-                run_module(mod, pkgName, res, commandPrefix)
+                # If `mod` is None, that means it was unable to be imported or
+                # there was a syntax error.
+                if mod is None:
+                    res.add_failure()
+                else:
+                    run_module(mod, pkgName, res, commandPrefix)
                 q.task_done()
 
         for threadNum in range(min(MODULE_THREAD_COUNT, moduleCount)):
@@ -848,7 +897,6 @@ def run_packages(suiteName, packageMap):
     '''
     dbg("Initializing suite %s" % suiteName)
     results = []
-    threads = []
 
     packageCount = len(packageMap.values())
 
@@ -898,13 +946,15 @@ def run_suite():
     Note that the test suite must import the `run` method from __init__.py.
     The process is terminated after completion.
     '''
+    init_testing()
+
     mainmod = sys.modules["__main__"]
+    dbg(f"Running suite {mainmod.__package__}")
 
     initialize_dynamic_test_stores(mainmod)
     if not isinstance(mainmod.run, FunctionType):
-        raise ValueError(f"No 'run' function found in module {mainmod.__name__}")
+        raise ValueError(f"No 'run' function found in module {mainmod.__package__}")
 
-    init_testing()
     result = mainmod.run()
 
     sys.exit(result.code)

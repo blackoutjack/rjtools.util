@@ -1,15 +1,15 @@
 
-from src.rjtools.util.testing import run_modules
+from src.rjtools.util.testing import run_modules, import_test_module
 from src.rjtools.util import fs
 
 from .testfs import files as mockfiles
 
 def run():
-    from . import convert
-    from . import type_check
-    from . import files
-    from . import testing
-    from . import log
+    convert = import_test_module("convert")
+    type_check = import_test_module("type_check")
+    files = import_test_module("files")
+    testing = import_test_module("testing")
+    log = import_test_module("log")
 
     fs.install_mocks(mockfiles)
 
