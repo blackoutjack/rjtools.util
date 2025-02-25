@@ -8,9 +8,13 @@ Python library containing various logging and testing utilities
 
 ## Installation
 
-To include `rjtools.util` in your project, add this line to `requirements.txt`
+To include `rjtools.util` in your project, add this line to the project's *requirements.txt*
 
-    -e git+https://github.com/blackoutjack/rjtools.util@0.0.1#egg=util
+    git+https://github.com/blackoutjack/rjtools.util@0.0.3#egg=rjtools.util
+
+or this to `dependencies` in *pyproject.toml*
+
+    rjtools.util@git+https://github.com/blackoutjack/rjtools.util@0.0.3
 
 ## The `testing` framework
 
@@ -60,3 +64,22 @@ and similar checks are done based on any `err_`.
 
 Other capabilities including support for unit testing are also included in the
 library.
+
+## Other utilities
+
+Other modules that normalize various actions are included in the following modules:
+
+- `rjtools.util.collection`: basic support for multimaps
+- `rjtools.util.convert`: support for type conversions (`str` <=> `datetime` and
+    some parsing of numeric data with units)
+- `rjtools.util.fs`: mock filesystem for testing, and functions for inspecting
+    actual files
+- `rjtools.util.log`: logging utility supporting multiplexing and redirection of
+    std streams
+- `rjtools.util.msg`: normalized text output
+- `rjtools.util.schema`: datastore schema format and datatypes
+- `rjtools.util.testing`: testing framework described above
+- `rjtools.util.testutil`: utilities (e.g., JSON filtering) intended for use from
+    *within* test cases running in the `testing` framework
+- `rjtools.util.testutil`: functions for type inspection and type checking
+
