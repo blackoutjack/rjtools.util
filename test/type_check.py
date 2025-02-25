@@ -15,6 +15,23 @@ def test_callable():
     type_check(mydef, callable, "mydef")
     return True
 
+def test_list():
+    """Test the special case of a list of types"""
+    typ = [int, float]
+    val = [5.2, 1, 5, 1.0]
+    type_check(val, typ, "val")
+    return True
+
+def test_list_fail():
+    """Test failure in the case of a list of types"""
+    typ = [int, float]
+    val = [1, "5.2", 2.0]
+    try:
+        type_check(val, typ, "val")
+        return False
+    except ValueError as ex:
+        return True
+
 def test_fail():
     '''Test a failing type check and the resulting error'''
     myvar = "string"
