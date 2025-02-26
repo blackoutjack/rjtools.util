@@ -1,0 +1,30 @@
+import os
+
+from rjtools.util.schema import TableSchema, DisallowedConstructError, SchemaLoadError, load_schema_from_file
+
+TEST_DIR = os.path.dirname(__file__)
+
+def test_load_schema_basic():
+    schema = load_schema_from_file(TEST_DIR + "/schemas/rainfall.py")
+    return isinstance(schema, TableSchema)
+
+def test_try_load_schema_bad_syntax():
+    try:
+        load_schema_from_file(TEST_DIR + "/schemas/badsyntax.py")
+        return False
+    except SchemaLoadError:
+        return True
+
+def test_try_load_schema_file_not_found():
+    try:
+        load_schema_from_file(TEST_DIR + "/schemas/filenotfound.py")
+        return False
+    except SchemaLoadError:
+        return True
+
+def test_try_load_schema_disallowed_syntax():
+    try:
+        load_schema_from_file(TEST_DIR + "/schemas/disallowedsyntax.py")
+        return False
+    except DisallowedConstructError:
+        return True
