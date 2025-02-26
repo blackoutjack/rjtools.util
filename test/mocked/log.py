@@ -2,7 +2,7 @@
 
 '''
 
-from src.rjtools.util.log import Logger
+from rjtools.util.log import Logger
 
 defaultLogger = Logger()
 

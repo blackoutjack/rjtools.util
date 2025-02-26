@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from difflib import Differ
-from importlib import import_module, invalidate_caches
+from importlib import import_module
 import inspect
 from io import TextIOWrapper, BytesIO
 import json
@@ -707,7 +707,7 @@ def restore_output():
 
 def import_test_module(modName, pkgName=None):
     """
-    Import test modules in an error-resilient manner.
+    Import test modules (or packages) in an error-resilient manner.
 
     To be called by test packages to import their modules, so that a syntax
     or initialization error in the module does not blow up the whole pkg.
@@ -762,7 +762,10 @@ def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
 
     extendedCommandPrefix = [] if commandPrefix is None else commandPrefix.copy()
 
-    symNames = vars(mod)
+    # Copy since some tests may dynamically create variables, which would
+    # otherwise trigger an exception while looping over the collection.
+    symNames = vars(mod).copy()
+
     for symName in symNames:
         if symName in disabled:
             redirect_lock.acquire()

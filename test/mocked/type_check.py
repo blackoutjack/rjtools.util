@@ -1,7 +1,7 @@
 '''Test the type examination functionality in rjtools.util.type'''
 
-from src.rjtools.util.msg import err
-from src.rjtools.util.type import type_check
+from rjtools.util.msg import err
+from rjtools.util.type import type_check
 
 def test_basic():
     '''Test a basic type check for an integer'''

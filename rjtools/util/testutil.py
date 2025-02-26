@@ -4,8 +4,11 @@ These utilities are not contained in rjtools.util.testing since that would poten
 cause a circular dependency.
 '''
 import json
+import os
 import random
 
+def get_test_working_dir():
+    return os.getcwd()
 
 def get_test_token():
     """

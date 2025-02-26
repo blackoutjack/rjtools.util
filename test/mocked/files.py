@@ -1,6 +1,6 @@
 '''Test file system access wrapper in rjtools.util.fs'''
 
-from src.rjtools.util import fs
+from rjtools.util import fs
 
 def test_binary_basic():
     '''Open a file in binary mode and read the contents'''

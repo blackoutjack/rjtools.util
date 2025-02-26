@@ -4,7 +4,7 @@ These tests should not call rjtools.util.testing functions directly since that w
 be a cyclic dependency. Rather, write tests that demonstrate the testing module
 is working correctly when it executes them.'''
 
-from src.rjtools.util.testutil import Grep
+from rjtools.util.testutil import Grep
 
 value_for_order_test = 0
 
@@ -63,10 +63,10 @@ input without the grepped-for string
 code_failure_stdin = 1
 
 
-run_testsuite_basic = ["python3", "-m", "test.testapp.test"]
+run_testsuite_basic = ["python3", "-m", "test.e2e.testapp.test"]
 
-out_testsuite_basic = Grep("""testing.test.testapp: running tests
-testing.test.testapp/mytest.run_ok_function: pass
+out_testsuite_basic = Grep("""testing.test.e2e.testapp: running tests
+testing.test.e2e.testapp/mytest.run_ok_function: pass
 """)
 
 code_testsuite_basic = 1
