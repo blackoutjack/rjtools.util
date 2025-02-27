@@ -70,3 +70,16 @@ testing.test.e2e.testapp/mytest.run_ok_function: pass
 """)
 
 code_testsuite_basic = 1
+
+run_testsuite_result_warning = ["python3", "-m", "test.e2e.testapp.testwarn"]
+
+out_testsuite_result_warning = Grep(
+    """testing.test.e2e.testapp/mytest.run_ok_function: pass""")
+
+err_testsuite_result_warning = """
+WARNING: no results returned by the main testsuite module
+"""
+
+code_testsuite_result_warning = 1
+
+
