@@ -8,6 +8,14 @@ def test_load_schema_basic():
     schema = load_schema_from_file(TEST_DIR + "/schemas/rainfall.py")
     return isinstance(schema, TableSchema)
 
+def test_load_schema_problem():
+    schema = load_schema_from_file(TEST_DIR + "/schemas-bad/rainfall.py")
+    return isinstance(schema, TableSchema)
+
+out_load_schema_problem = "Exception occurred during schema/test_load_schema_problem: SchemaLoadError: Unable to load schema: name 'Date' is not defined"
+
+result_load_schema_problem = None
+
 def test_try_load_schema_bad_syntax():
     try:
         load_schema_from_file(TEST_DIR + "/schemas/badsyntax.py")

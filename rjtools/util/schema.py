@@ -121,13 +121,13 @@ def load_schema_from_file(filePath):
         "__builtins__": {},
         "TableSchema": TableSchema,
         "DataType": DataType,
-        "schema": None,
+        "schema": None
     }
 
     try:
         exec(safeCode, globals)
     except BaseException as ex:
-        SchemaLoadError(str(ex))
+        raise SchemaLoadError(str(ex))
     schema = globals["schema"]
 
     return schema
