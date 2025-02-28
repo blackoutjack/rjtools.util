@@ -82,4 +82,14 @@ WARNING: no results returned by the main testsuite module
 
 code_testsuite_result_warning = 1
 
+def test_simple_test():
+    return True
+
+def test_sys_exit():
+    import sys
+    sys.exit()
+
+result_sys_exit = None
+
+out_sys_exit = "Exception occurred during testing/test_sys_exit: SystemExit: "
 

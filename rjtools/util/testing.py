@@ -434,7 +434,8 @@ def run_test(mod, testName):
     redirect_output()
     try:
         testResult = fn()
-    except Exception as ex:
+    except BaseException as ex:
+        # BaseException also catches SystemExit (i.e., sys.exit())
         exception = ex
         exceptionString = "%s: %s" % (ex.__class__.__name__, str(ex))
         print("Exception occurred during %s/%s: %s"
