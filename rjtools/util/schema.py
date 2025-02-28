@@ -1,7 +1,11 @@
 """
 Data types and schema class for constructing a database wrapper
 """
+import os
 import ast
+
+from .type import type_check
+from .msg import dbg
 
 from enum import Flag, auto
 
@@ -35,7 +39,7 @@ class SchemaLoadError(Exception):
         message += f": {msg}"
         super().__init__(message)
 
-class DisallowedConstructError(Exception):
+class DisallowedConstructError(SchemaLoadError):
     def __init__(self, constructName, fileName=None):
         message = f"Disallowed code {constructName}"
         if fileName is not None:
@@ -110,6 +114,8 @@ def load_schema_from_file(filePath):
             [DATE],
         )
     """
+    type_check(filePath, str, "filePath")
+
     try:
         fl = open(filePath, 'rt', encoding='utf-8')
     except OSError as ex:
@@ -132,4 +138,35 @@ def load_schema_from_file(filePath):
 
     return schema
 
+
+def load_schemas_from_dir(schemaDir):
+    """
+    Scans a directory and attempts to load any .py file as a TableSchema.
+
+    Restricted syntax is enforced, and errors in any file results in an error
+    for the entire directory. If you want the schemas that were loaded
+    successfully even if errors occurred in some, then call
+    `load_schema_from_file` directly.
+
+    :param schemaDir: directory containing the schema files
+    :raises: SchemaLoadError
+    :return: map of table names to schemas found in the directory
+    :rtype: map of str => TableSchema
+    """
+    type_check(schemaDir, str, "schemaDir")
+
+    schemas = {}
+    for fileName in os.listdir(schemaDir):
+        if not fileName.endswith(".py"):
+            dbg(f"Skipping non-Python file {fileName} in schema directory {schemaDir}")
+            continue
+
+        filePath = os.path.join(schemaDir, fileName)
+        schema = load_schema_from_file(filePath)
+
+        if isinstance(schema, TableSchema):
+            schemas[schema.name] = schema
+        else:
+            raise SchemaLoadError(f"Unexpected value produced when loading schema {filePath}: {schema}")
+    return schemas
 
