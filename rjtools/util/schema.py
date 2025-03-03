@@ -23,13 +23,18 @@ class DataType(Flag):
 
 
 class TableSchema:
-    def __init__(self, name, columnDefs, keyNames, indexes=[], headerRowNum=1):
+    def __init__(self, name, columnDefs, keyNames, indexes=[], extra={}, headerRowNum=1):
         self.name = name
         self.columns = list(columnDefs.keys())
         self.columnTypes = columnDefs
         self.key = keyNames
         self.indexes = indexes
         self.header_row_num = headerRowNum
+        for propName in extra.keys():
+            if hasattr(self, propName):
+                raise ValueError(
+                    f"Cannot overwrite property {propName} in schema {name}")
+            setattr(self, propName, extra[propName])
 
 class SchemaLoadError(Exception):
     def __init__(self, msg, fileName=None):
@@ -66,7 +71,13 @@ def validate_schema_definition(unsafeCode, fileToReport=None):
 
     for node in ast.walk(mod):
         if isinstance(node, ast.Call):
-            if node.func.id != "TableSchema" or len(node.args) > 4:
+            if node.func.id == "TableSchema" and len(node.args) > 4:
+                # Allow the `TableSchema` constructor to be called.
+                pass
+            elif node.func.id == "locals" and len(node.args) == 0:
+                # Allow `locals()` to be called to set up property names.
+                pass
+            else:
                 raise DisallowedConstructError(
                     "ast.Call to function other than `TableSchema`",
                     fileToReport)
@@ -86,7 +97,7 @@ def load_schema_from_file(filePath):
     Eval a Python file to generate a TableSchema object.
 
     :param filePath: str, file that initializes the `TableSchema`
-    :raises: DisallowedConstructError, SchemaLoadError
+    :raises: SchemaLoadError
     :return: the generated schema object
     :rtype: TableSchema
 
@@ -112,6 +123,7 @@ def load_schema_from_file(filePath):
             }
             KEY,
             [DATE],
+            locals(), # To set `NAME`, `ID`, etc. as properties on the object.
         )
     """
     type_check(filePath, str, "filePath")
