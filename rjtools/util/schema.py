@@ -71,15 +71,16 @@ def validate_schema_definition(unsafeCode, fileToReport=None):
 
     for node in ast.walk(mod):
         if isinstance(node, ast.Call):
-            if node.func.id == "TableSchema" and len(node.args) > 4:
+            argCnt = len(node.args)
+            if node.func.id == "TableSchema" and argCnt > 2 and argCnt < 7:
                 # Allow the `TableSchema` constructor to be called.
                 pass
-            elif node.func.id == "locals" and len(node.args) == 0:
+            elif node.func.id == "locals" and argCnt == 0:
                 # Allow `locals()` to be called to set up property names.
                 pass
             else:
                 raise DisallowedConstructError(
-                    "ast.Call to function other than `TableSchema`",
+                    f"ast.Call to disallowed function {node.func.id}",
                     fileToReport)
         elif isinstance(node, ast.Attribute):
             if (node.value.id != "DataType"
@@ -136,7 +137,7 @@ def load_schema_from_file(filePath):
     safeCode = validate_schema_definition(unsafeCode, filePath)
 
     globals = {
-        "__builtins__": {},
+        "__builtins__": {"locals": locals},
         "TableSchema": TableSchema,
         "DataType": DataType,
         "schema": None
