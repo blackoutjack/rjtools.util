@@ -148,6 +148,7 @@ def load_schema_from_file(filePath):
     except BaseException as ex:
         raise SchemaLoadError(str(ex))
     schema = globals["schema"]
+    dbg(f"GOT SCHEMA: {schema.name}")
 
     return schema
 
