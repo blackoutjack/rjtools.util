@@ -44,4 +44,17 @@ def test_fail():
 
 err_fail = "ERROR: Unexpected type for 'myvar': <class 'str'> (expected <class 'int'>)"
 
+def test_can_be_none():
+    myval = None
+    type_check(myval, str, "myval", canBeNone=True)
+    return True
+
+def test_cannot_be_none():
+    myval = None
+    try:
+        type_check(myval, str, "myval", canBeNone=False)
+        return False
+    except ValueError as ex:
+        return True
+
 

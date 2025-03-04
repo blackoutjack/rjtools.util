@@ -47,7 +47,7 @@ def has_type(val, typ):
         return val is None
     return isinstance(val, typ)
 
-def type_check(val, typ, varname):
+def type_check(val, typ, varname, canBeNone=False):
     """
     Verify that `val` has type `typ`, or raise a ValueError
 
@@ -57,7 +57,10 @@ def type_check(val, typ, varname):
         containing values of only those types. An empty list just check that
         the value is a list.
     :param varname: name of the variable (or any expr.) to include in errors
+    :param canBeNone: whether `None` is an acceptable value for `val`
     """
+    if canBeNone and val is None: return
+
     if isinstance(typ, list):
         # Check that `val` is a list of values with the type that `typ` contains
         if not has_type(val, list):
