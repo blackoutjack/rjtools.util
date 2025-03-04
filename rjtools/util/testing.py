@@ -689,7 +689,6 @@ def initialize_dynamic_test_stores(testPackages):
 
 def clean_dynamic_test_stores(dynamicTestStores):
     '''Remove dynamically-created test files'''
-    dbg("IN CLEAN DYNAMIC TEST STORES: %r" % dynamicTestStores)
     if not get_debug():
         for testStore in dynamicTestStores:
             os.unlink(testStore)
