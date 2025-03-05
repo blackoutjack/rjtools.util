@@ -32,9 +32,9 @@ class Grep:
     rather than matching the entire string.
     """
 
-    def __init__(self, search):
-        # String to search for
-        self.search = search
+    def __init__(self, *searches):
+        # Strings to search for (unordered)
+        self.searches = searches
 
 
 class JSONFilter:

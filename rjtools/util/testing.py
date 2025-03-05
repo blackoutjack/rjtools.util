@@ -336,25 +336,24 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
             output = output.replace(mod.__dict__["TEST_DIR"], "%TESTDIR%")
 
         if isinstance(expectedValue, Grep):
-            searchVal = expectedValue.search
+            for searchVal in expectedValue.searches:
+                # Run the check variants. If any succeed, the overall check passes.
+                result = re.search(searchVal, output)
+                #result = output.find(searchVal) >= 0
 
-            # Run the check variants. If any succeed, the overall check passes.
-            result = re.search(searchVal, output)
-            #result = output.find(searchVal) >= 0
+                # %%% Provide the test a way to retrieve regex matches.
 
-            # %%% Provide the test a way to retrieve regex matches.
+                result = False if result is None else True
 
-            result = False if result is None else True
-
-            if not result:
-                print_expected_actual_mismatch(
-                    testId,
-                    testPath,
-                    searchVal,
-                    output,
-                    expectedTitle="Expected %s substring" % streamName,
-                    actualTitle="Actual %s output" % streamName,
-                    command=command)
+                if not result:
+                    print_expected_actual_mismatch(
+                        testId,
+                        testPath,
+                        searchVal,
+                        output,
+                        expectedTitle="Expected %s substring" % streamName,
+                        actualTitle="Actual %s output" % streamName,
+                        command=command)
 
         else:
             if type(expectedValue) is JSONFilter:
@@ -529,14 +528,7 @@ def run_subprocess(mod, testName, commandPrefix=None):
     # Pass along debug option
     if get_debug(): args.append("-g")
 
-    try:
-        commandText = shlex.join(args)
-    except TypeError as ex:
-        # Matched to release() after print_result in caller.
-        module_lock.acquire()
-        print_divider()
-        print_error("%sCommand arguments contain unsupported types: %r%s" % (COLOR["RED"], args, COLOR["ENDC"]))
-        return False
+    commandText = shlex.join(args)
 
     dbg("Running subprocess: %s" % commandText)
     if inputValue is None:
@@ -790,7 +782,13 @@ def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
         elif symName.startswith(INPROCESS_TEST_PREFIX):
             result = run_test(mod, symName)
         elif symName.startswith(SUBPROCESS_TEST_PREFIX):
-            result = run_subprocess(mod, symName, extendedCommandPrefix)
+            try:
+                result = run_subprocess(mod, symName, extendedCommandPrefix)
+            except (ValueError, TypeError) as ex:
+                # Matched to release() after print_result
+                module_lock.acquire()
+                print_error(f"Failed to run subprocess test {symName} in module {mod.__name__}: {str(ex)}")
+                result = False
         elif symName.startswith(BATCH_TEST_PREFIX):
             result = run_batch(mod, symName, extendedCommandPrefix)
         else:

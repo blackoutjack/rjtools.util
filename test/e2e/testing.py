@@ -63,13 +63,26 @@ input without the grepped-for string
 code_failure_stdin = 1
 
 
-run_testsuite_basic = ["python3", "-m", "test.e2e.testapp.test"]
+run_testsuite_pass = ["python3", "-m", "test.e2e.testapp.testpass"]
 
-out_testsuite_basic = Grep("""testing.test.e2e.testapp: running tests
-testing.test.e2e.testapp/mytest.run_ok_function: pass
-""")
+out_testsuite_pass = """
+testing.test.e2e.testapp: running tests
+testing.test.e2e.testapp/mytest.run_ok_one: pass
+testing.test.e2e.testapp/mytest.run_ok_two: pass
+testing.test.e2e.testapp: ran 2 tests, all successful
+"""
 
-code_testsuite_basic = 1
+code_testsuite_pass = 0
+
+
+run_testsuite_fail = ["python3", "-m", "test.e2e.testapp.testfail"]
+
+out_testsuite_fail = Grep("""testing.test.e2e.testapp: running tests
+testing.test.e2e.testapp/mytest.run_ok_function: pass""", """
+testing.test.e2e.testapp/mytest.run_buggy_function: FAIL""")
+
+code_testsuite_fail = 1
+
 
 run_testsuite_result_warning = ["python3", "-m", "test.e2e.testapp.testwarn"]
 
@@ -81,6 +94,24 @@ WARNING: no results returned by the main testsuite module
 """
 
 code_testsuite_result_warning = 1
+
+
+run_testsuite_bad_test = ["python3", "-m", "test.e2e.testapp.testbad"]
+
+out_testsuite_bad_test = Grep("""testing.test.e2e.testapp/badtest.run_ok: pass""")
+
+code_testsuite_bad_test = 1
+
+
+run_testsuite_bad_module = ["python3", "-m", "test.e2e.testapp.testbadmod"]
+
+out_testsuite_bad_module = Grep(
+"""ERROR: Detected syntax error in badmodule: invalid syntax \\(badmodule.py, line 3\\)
+testing.test.e2e.testapp: running tests
+testing.test.e2e.testapp/mytest.run_ok_function: pass""")
+
+code_testsuite_bad_module = 1
+
 
 def test_simple_test():
     return True
