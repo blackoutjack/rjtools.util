@@ -12,5 +12,5 @@ def run():
 
     fs.install_mocks(mockfiles)
 
-    return run_modules("rjtools.util", locals())
+    return run_modules("rjtools.util.unit", locals())
 

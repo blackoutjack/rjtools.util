@@ -6,5 +6,5 @@ def run():
     schema = import_test_module("schema")
     testing = import_test_module("testing")
 
-    return run_modules("rjtools.util", locals())
+    return run_modules("rjtools.util.e2e", locals())
 

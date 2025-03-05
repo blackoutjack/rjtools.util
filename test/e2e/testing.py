@@ -96,9 +96,20 @@ WARNING: no results returned by the main testsuite module
 code_testsuite_result_warning = 1
 
 
-run_testsuite_bad_test = ["python3", "-m", "test.e2e.testapp.testbad"]
+run_testsuite_bad_run = ["python3", "-m", "test.e2e.testapp.testbadrun"]
 
-out_testsuite_bad_test = Grep("""testing.test.e2e.testapp/badtest.run_ok: pass""")
+out_testsuite_bad_run = Grep(
+    "testing.test.e2e.testapp/badtest.run_ok: pass",
+    "testing.test.e2e.testapp/badtest.run_bad: FAIL")
+
+code_testsuite_bad_run = 1
+
+
+run_testsuite_bad_test = ["python3", "-m", "test.e2e.testapp.testbadtest"]
+
+out_testsuite_bad_test = Grep(
+    "testing.test.e2e.testapp/badtest.test_ok: pass",
+    "testing.test.e2e.testapp/badtest.test_bad: FAIL")
 
 code_testsuite_bad_test = 1
 

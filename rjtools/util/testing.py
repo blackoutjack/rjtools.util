@@ -52,11 +52,12 @@ TEST_ERROR_PREFIX = "err_"
 # modified in the course of testing.
 TESTING_TOKEN = "_test%d" % os.getpid()
 
-# Thread
+# Acquire lock and set this back to none before printing results; otherwise
+# that output may be captured as test output.
 redirect = None
-# Thread lock for coordinating
 redirect_lock = RLock()
-# For atomic blocks w.r.t. test module threads
+
+# Keep output contiguous for a single test contiguous
 module_lock = RLock()
 # For updating sys.path
 syspath_lock = RLock()
@@ -321,6 +322,15 @@ def check_result(mod, testName, expectedVarname, testResult, command=None):
 def get_test_identifier(mod, testName):
     return "%s/%s" % (mod.__name__, testName)
 
+def check_output_grep(searchVal, text):
+    # Run the check variants. If any succeed, the overall check passes.
+    result = re.search(searchVal, text)
+    #result = output.find(searchVal) >= 0
+
+    # %%% Provide the test a way to retrieve regex matches.
+
+    result = False if result is None else True
+    return result
 
 def check_output(mod, testName, expectedVarname, output, streamName, command=None):
     testId = get_test_identifier(mod, testName)
@@ -337,13 +347,7 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
 
         if isinstance(expectedValue, Grep):
             for searchVal in expectedValue.searches:
-                # Run the check variants. If any succeed, the overall check passes.
-                result = re.search(searchVal, output)
-                #result = output.find(searchVal) >= 0
-
-                # %%% Provide the test a way to retrieve regex matches.
-
-                result = False if result is None else True
+                result = check_output_grep(searchVal, output)
 
                 if not result:
                     print_expected_actual_mismatch(
@@ -354,9 +358,11 @@ def check_output(mod, testName, expectedVarname, output, streamName, command=Non
                         expectedTitle="Expected %s substring" % streamName,
                         actualTitle="Actual %s output" % streamName,
                         command=command)
+                    # Multiple failures can get confusing, stop at one.
+                    break
 
         else:
-            if type(expectedValue) is JSONFilter:
+            if isinstance(expectedValue, JSONFilter):
                 try:
                     # Remove the specified attributes from the JSON output
                     output = expectedValue.applyFilter(output)
@@ -559,7 +565,7 @@ def run_batch(mod, testName, commandPrefix=None):
     :return: boolean indicating whether the test passed
     '''
     values = mod.__dict__[testName]
-    if type(values) is str:
+    if isinstance(values, str):
         # Specifying command arguments are optional, as long as there is
         # something in commandPrefix.
         type_check(commandPrefix, type([]), testName)
@@ -770,6 +776,10 @@ def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
     # otherwise trigger an exception while looping over the collection.
     symNames = vars(mod).copy()
 
+    isatty = sys.stdout.isatty()
+    RED = COLOR["RED"] if isatty else ""
+    ENDC = COLOR["ENDC"] if isatty else ""
+
     for symName in symNames:
         if symName in disabled:
             redirect_lock.acquire()
@@ -777,21 +787,47 @@ def run_module(mod:ModuleType, packageName, results, commandPrefix=None):
             redirect_lock.release()
             continue
         if symName == COMMAND_PREFIX_ADDITIONS:
-            extendedCommandPrefix.extend(mod.__dict__[symName])
+            try:
+                additions = mod.__dict__[symName]
+                type_check(additions, [str], symName)
+                extendedCommandPrefix.extend(additions)
+            except (ValueError, TypeError) as ex:
+                # Matched to release() after print_result
+                module_lock.acquire()
+                print_error(
+                    f"{RED}Failed to load {symName} in module {mod.__name__}: "
+                    f"{str(ex)}{ENDC}")
             continue
         elif symName.startswith(INPROCESS_TEST_PREFIX):
-            result = run_test(mod, symName)
+            try:
+                result = run_test(mod, symName)
+            except (ValueError, TypeError) as ex:
+                module_lock.acquire()
+                print_error(
+                    f"{RED}Failed to run test function {symName} in "
+                    f"module {mod.__name__}: {str(ex)}{ENDC}")
+                result = False
         elif symName.startswith(SUBPROCESS_TEST_PREFIX):
             try:
                 result = run_subprocess(mod, symName, extendedCommandPrefix)
             except (ValueError, TypeError) as ex:
                 # Matched to release() after print_result
                 module_lock.acquire()
-                print_error(f"Failed to run subprocess test {symName} in module {mod.__name__}: {str(ex)}")
+                print_error(
+                    f"{RED}Failed to run subprocess test {symName} in "
+                    f"module {mod.__name__}: {str(ex)}{ENDC}")
                 result = False
         elif symName.startswith(BATCH_TEST_PREFIX):
-            result = run_batch(mod, symName, extendedCommandPrefix)
+            try:
+                result = run_batch(mod, symName, extendedCommandPrefix)
+            except (ValueError, TypeError) as ex:
+                module_lock.acquire()
+                print_error(
+                    f"{RED}Failed to run batch test {symName} in module "
+                    f"{mod.__name__}: {str(ex)}{ENDC}")
+                result = False
         else:
+            # Just some random symbol, ignore.
             continue
 
         print_result(packageName, mod.__name__, symName, result)
