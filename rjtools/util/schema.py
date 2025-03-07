@@ -14,6 +14,7 @@ class DataType(Flag):
     AUTOID = auto()
     FORMULA = auto()
     DATE = auto()
+    INT = auto()
     STRING = auto()
     TEXT = auto()
     DATETIME = auto()
