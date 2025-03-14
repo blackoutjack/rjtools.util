@@ -85,10 +85,13 @@ def validate_schema_definition(unsafeCode, fileToReport=None):
                     f"ast.Call to disallowed function {node.func.id}",
                     fileToReport)
         elif isinstance(node, ast.Attribute):
-            if (node.value.id != "DataType"
-                or node.attr not in DataType.__members__.keys()):
+            if (node.value.id != "DataType"):
                 raise DisallowedConstructError(
-                    "ast.Attribute access other than DataType",
+                    f"ast.Attribute access other than DataType: {node.value.id}",
+                    fileToReport)
+            if (node.attr not in DataType.__members__.keys()):
+                raise DisallowedConstructError(
+                    f"ast.Attribute access to non-member of DataType: {node.attr}",
                     fileToReport)
         elif not isinstance(node, allowedNodeTypes):
             raise DisallowedConstructError(type(node), fileToReport)
