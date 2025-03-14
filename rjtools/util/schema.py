@@ -24,13 +24,14 @@ class DataType(Flag):
 
 
 class TableSchema:
-    def __init__(self, name, columnDefs, keyNames, indexes=[], extra={}, headerRowNum=1):
+    def __init__(self, name, columnDefs, keyNames, indexes=[], extra={}, headerRowNum=1, foreignKeys=None):
         self.name = name
         self.columns = list(columnDefs.keys())
         self.columnTypes = columnDefs
         self.key = keyNames
         self.indexes = indexes
         self.header_row_num = headerRowNum
+        self.foreign_keys = foreignKeys
         for propName in extra.keys():
             if hasattr(self, propName):
                 raise ValueError(
@@ -64,7 +65,7 @@ def validate_schema_definition(unsafeCode, fileToReport=None):
     :rtype: str
     """
     allowedNodeTypes = (ast.Module, ast.Assign, ast.Name, ast.Constant,
-        ast.Store, ast.Dict, ast.Load, ast.List, ast.Tuple)
+        ast.Store, ast.Dict, ast.Load, ast.List, ast.Tuple, ast.keyword)
     try:
         mod = ast.parse(unsafeCode)
     except BaseException as ex:
