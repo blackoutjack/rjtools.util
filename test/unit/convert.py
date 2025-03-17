@@ -1,6 +1,8 @@
 '''Test conversion functions in the rjtools.util.convert module'''
 
-from rjtools.util.convert import parse_date, parse_user_date, parse_nonnumeric, parse_numeric, amount_to_grams
+from rjtools.util.convert import (parse_date, parse_user_date,
+    parse_nonnumeric, parse_numeric, amount_to_grams, parse_timestamp,
+    parse_iso_timestamp_with_offset)
 
 def test_numeric_empty():
     '''Test exception thrown when input is the empty string'''
@@ -92,4 +94,15 @@ def test_amount_to_grams_empty():
         return False
     return len(errors) == 1 and errors[0] == "No amount specified, assuming zero"
 
+def test_timestamp_basic():
+    orig = "2023-02-04 11:12:13"
+    dt = parse_timestamp(orig)
+    back = dt.strftime("%Y-%m-%d %H:%M:%S")
+    return back == orig
+
+def test_iso_timestamp_with_offset():
+    orig = "2023-02-04 11:12:13-05:00"
+    dt = parse_iso_timestamp_with_offset(orig)
+    back = dt.strftime("%Y-%m-%d %H:%M:%S%:z")
+    return back == orig
 

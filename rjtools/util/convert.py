@@ -54,7 +54,7 @@ def date_user_string(date):
 
 def timestamp_string(timestamp):
     """
-    Get the current time in ISO format
+    Convert the given timestamp to ISO format
 
     :param timestamp: datetime.datetime, the timestamp to convert
     :raises TypeError: when the date is not a datetime object or None
@@ -228,6 +228,12 @@ def iso_to_user_date(dateISO, doWarn=True):
             warn(f"Error while parsing ISO date to display date: {str(ex)}")
         return None
 
+def parse_iso_timestamp_with_offset(timestamp):
+    # The '%:z' format specifier is not being accepted (probably because of
+    # the system strptime implementation).
+    if timestamp.endswith(":00"):
+        timestamp = timestamp[:-3] + timestamp[-2:]
+    return parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S%z")
 
 def parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S"):
     """
