@@ -519,11 +519,14 @@ def run_subprocess(mod, testName, commandPrefix=None):
     :return: boolean indicating whether the test passed
     '''
     args = mod.__dict__[testName]
-    type_check(args, type([]), testName)
+    type_check(args, type([str, int]), testName)
 
     if commandPrefix is not None:
         type_check(commandPrefix, type([]), testName)
         args = commandPrefix + args
+
+    # Convert any ints to str.
+    args = list(map(str, args))
 
     testSuffix = testName[len(SUBPROCESS_TEST_PREFIX):]
     inputName = TEST_INPUT_PREFIX + testSuffix

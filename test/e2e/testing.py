@@ -39,6 +39,10 @@ run_basic_subprocess = ["echo", "this should be the output"]
 
 out_basic_subprocess = "this should be the output"
 
+"""Run a subprocess test (prefixed by "run_") check output."""
+run_subprocess_with_ints = ["echo", 1, 2, 3]
+
+out_subprocess_with_ints = "1 2 3"
 
 # For the following tests, set the command accepting batch input.
 run_basic_stdin = ["cat"]
