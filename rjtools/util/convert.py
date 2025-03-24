@@ -21,7 +21,7 @@ def date_string(date):
     if date is None: return None
 
     if not isinstance(date, (datetime.date, datetime.datetime)):
-        msg = "Non-date value to provided: {date}"
+        msg = f"Non-date value to provided: {date}"
         raise TypeError(msg)
 
     return "%s-%s-%s" % (
@@ -42,7 +42,7 @@ def date_user_string(date):
     if date is None: return None
 
     if not isinstance(date, (datetime.date, datetime.datetime)):
-        msg = "Non-date value to provided: {date}"
+        msg = f"Non-date value to provided: {date}"
         raise TypeError(msg)
 
     # Strip potential leading zeros from each component (matches sheet format)
@@ -64,7 +64,7 @@ def timestamp_string(timestamp):
     if timestamp is None: return None
 
     if not isinstance(timestamp, datetime.datetime):
-        msg = "Non-timestamp value to provided: {timestamp}"
+        msg = f"Non-timestamp value to provided: {timestamp}"
         raise TypeError(msg)
 
     return "%s-%s-%s %s:%s:%s" % (
@@ -425,7 +425,7 @@ def amount_to_grams(amount, nonFatalErrors:list|None=None):
             # "0" can be interpreted as 0 grams without warning
             if amount != "0":
                 nonFatalErrors.append(
-                    "Units not specified in '{amount}', assuming grams")
+                    f"Units not specified in '{amount}', assuming grams")
                 total += amounti
         elif units == "g":
             total += amounti
@@ -434,7 +434,7 @@ def amount_to_grams(amount, nonFatalErrors:list|None=None):
         elif units == "oz":
             total += amounti * 28.34952
         else:
-            raise ValueError("Unhandled units in '{amount}': '{units}'")
+            raise ValueError(f"Unhandled units in '{amount}': '{units}'")
     return math.floor(total)
 
 
