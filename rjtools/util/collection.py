@@ -1,7 +1,13 @@
 """Utility functions for working with collection types."""
 
+from collections.abc import Callable
+from functools import reduce
+from typing import TypeVar
 
-def update_multimap(multimap:dict, key, value):
+
+
+
+def update_multimap(multimap:dict[TypeVar("T")], key:str, value:TypeVar("T")):
     """
     Add a value to a multimap
 
@@ -16,3 +22,7 @@ def update_multimap(multimap:dict, key, value):
     foundDuplicate = len(values) > 0
     values.append(value)
     return foundDuplicate
+
+def flatmap(func:Callable[[TypeVar("T")],list], coll:list[TypeVar("T")]):
+    return reduce(lambda accum, next: accum + func(next), coll, [])
+

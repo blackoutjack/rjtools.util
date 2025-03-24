@@ -9,6 +9,7 @@ def run():
     type_check = import_test_module("type_check")
     files = import_test_module("files")
     log = import_test_module("log")
+    collection = import_test_module("collection")
 
     fs.install_mocks(mockfiles)
 
