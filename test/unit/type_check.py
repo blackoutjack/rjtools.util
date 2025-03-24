@@ -1,7 +1,7 @@
 '''Test the type examination functionality in rjtools.util.type'''
 
 from rjtools.util.msg import err
-from rjtools.util.type import type_check
+from rjtools.util.type import type_check, empty, nonempty
 
 def test_basic():
     '''Test a basic type check for an integer'''
@@ -56,5 +56,35 @@ def test_cannot_be_none():
         return False
     except ValueError as ex:
         return True
+
+def test_none_empty():
+    val = None
+    return empty(val)
+
+def test_string_empty():
+    val = ""
+    return empty(val)
+
+def test_array_empty():
+    val = []
+    return empty(val)
+
+def test_dict_empty():
+    val = {}
+    return empty(val)
+
+def test_string_nonempty():
+    val = "a"
+    return nonempty(val)
+
+def test_array_nonempty():
+    val = [None]
+    return nonempty(val)
+
+def test_dict_nonempty():
+    val = {"a": None}
+    return nonempty(val)
+
+
 
 

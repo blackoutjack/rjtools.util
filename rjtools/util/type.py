@@ -8,7 +8,7 @@ def empty(value):
     :return: whether the value is empty
     :rtype: bool
     """
-    return value in [None, '', []]
+    return value in [None, '', [], {}]
 
 def nonempty(value):
     """Non-emptiness check, inverse of `empty`
