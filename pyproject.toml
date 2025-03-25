@@ -11,3 +11,7 @@ license = { file = "LICENSE.txt" }
 
 [project.urls]
 Homepage = "https://github.com/blackoutjack/rjtools.util"
+
+[tool.setuptools]
+packages = ["rjtools.util"]
+
