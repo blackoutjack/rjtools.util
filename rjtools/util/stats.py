@@ -1,6 +1,7 @@
 from numbers import Real
+from typing import TypeVar
 
-def get_median_of_sorted(vals:list):
+def get_median_of_sorted(vals:list[TypeVar("T")]) -> TypeVar("T"):
     count = len(vals)
     if count == 0: return None 
 
@@ -9,7 +10,7 @@ def get_median_of_sorted(vals:list):
 
     return (vals[count//2] + vals[(count-1)//2]) / 2 
 
-def get_modes_of_sorted(vals:list):
+def get_modes_of_sorted(vals:list[TypeVar("T")]) -> list[TypeVar("T")]:
     if len(vals) == 0: return None 
 
     modes = []
