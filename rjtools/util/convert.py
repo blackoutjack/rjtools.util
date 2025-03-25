@@ -128,7 +128,6 @@ def today_user_string():
     today = today_date()
     return date_user_string(today)
 
-
 def _date_from_datetime(dateTime):
     dateStrISO = date_string(dateTime)
     return datetime.date.fromisoformat(dateStrISO)
@@ -137,6 +136,20 @@ def _date_from_datetime(dateTime):
 def _date_from_string(dateStr, form):
     dateTime = datetime.datetime.strptime(dateStr, form)
     return _date_from_datetime(dateTime)
+
+
+def get_prior_sunday(date):
+    """
+    Get a date object representing the Sunday prior to the given date
+
+    :param date: datetime.date, date to look back from to get the prior Sunday
+    :return: date representing the prior Sunday
+    :rtype: datetime.date
+    """
+    weekday = date.weekday()
+    daysBack = (weekday - 6) % 7
+    delta = datetime.timedelta(days=daysBack)
+    return date - delta
 
 
 def parse_date(dateStr, form="%Y-%m-%d"):
@@ -148,7 +161,7 @@ def parse_date(dateStr, form="%Y-%m-%d"):
     :param form: string, format to use for parsing ``dateStr``
 
     :raises ValueError: when an unparsable date or invalid format are given
-    :return: datetime object representing the date
+    :return: object representing the date
     :rtype: datetime.date
     """
     if dateStr is None:

@@ -2,7 +2,7 @@
 
 from rjtools.util.convert import (parse_date, parse_user_date,
     parse_nonnumeric, parse_numeric, amount_to_grams, parse_timestamp,
-    parse_iso_timestamp_with_offset)
+    parse_iso_date, parse_iso_timestamp_with_offset, get_prior_sunday)
 
 def test_numeric_empty():
     '''Test exception thrown when input is the empty string'''
@@ -105,4 +105,9 @@ def test_iso_timestamp_with_offset():
     dt = parse_iso_timestamp_with_offset(orig)
     back = dt.strftime("%Y-%m-%d %H:%M:%S%:z")
     return back == orig
+
+def test_prior_sunday():
+    tuesday = parse_iso_date("2025-03-25")
+    sunday = get_prior_sunday(tuesday)
+    return sunday == parse_iso_date("2025-03-23")
 
