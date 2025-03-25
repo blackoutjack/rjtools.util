@@ -10,6 +10,7 @@ def run():
     files = import_test_module("files")
     log = import_test_module("log")
     collection = import_test_module("collection")
+    stats = import_test_module("stats")
 
     fs.install_mocks(mockfiles)
 

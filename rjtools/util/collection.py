@@ -24,5 +24,10 @@ def update_multimap(multimap:dict[TypeVar("T")], key:str, value:TypeVar("T")):
     return foundDuplicate
 
 def flatmap(func:Callable[[TypeVar("T")],list], coll:list[TypeVar("T")]):
+    """
+    Functional flatmap operation
+
+    Flatten a list of lists into a list with one level less nesting.
+    """
     return reduce(lambda accum, next: accum + func(next), coll, [])
 
