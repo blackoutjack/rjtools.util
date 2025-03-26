@@ -3,6 +3,7 @@ Data types and schema class for constructing a database wrapper
 """
 import os
 import ast
+from typing import Optional, Union, Any, cast
 
 from .type import type_check
 from .msg import dbg
@@ -24,7 +25,14 @@ class DataType(Flag):
 
 
 class TableSchema:
-    def __init__(self, name, columnDefs, keyNames, indexes=[], extra={}, headerRowNum=1, foreignKeys=None):
+  def __init__(
+      self, name:str,
+      columnDefs:dict[str,DataType],
+      keyNames:Union[str,tuple[str]],
+      indexes:list[Union[str,tuple[str]]]=[],
+      extra:dict[str, Any]={},
+      headerRowNum:int=1,
+      foreignKeys:Optional[dict[str,str]]=None):
         self.name = name
         self.columns = list(columnDefs.keys())
         self.columnTypes = columnDefs
@@ -39,7 +47,7 @@ class TableSchema:
             setattr(self, propName, extra[propName])
 
 class SchemaLoadError(Exception):
-    def __init__(self, msg, fileName=None):
+    def __init__(self, msg:str, fileName:Optional[str]=None):
         message = "Unable to load schema"
         if fileName is not None:
             message += f" from file {fileName}"
@@ -47,14 +55,14 @@ class SchemaLoadError(Exception):
         super().__init__(message)
 
 class DisallowedConstructError(SchemaLoadError):
-    def __init__(self, constructName, fileName=None):
+    def __init__(self, constructName:Any, fileName:Optional[str]=None):
         message = f"Disallowed code {constructName}"
         if fileName is not None:
             message += f" in file {fileName}"
         super().__init__(message)
 
 
-def validate_schema_definition(unsafeCode, fileToReport=None):
+def validate_schema_definition(unsafeCode:str, fileToReport:Optional[str]=None) -> str:
     """
     Walks the given code's ast and errors if unallowed constructs are found
 
@@ -74,31 +82,41 @@ def validate_schema_definition(unsafeCode, fileToReport=None):
     for node in ast.walk(mod):
         if isinstance(node, ast.Call):
             argCnt = len(node.args)
-            if node.func.id == "TableSchema" and argCnt > 2 and argCnt < 7:
-                # Allow the `TableSchema` constructor to be called.
-                pass
-            elif node.func.id == "locals" and argCnt == 0:
-                # Allow `locals()` to be called to set up property names.
-                pass
+            if isinstance(node.func, ast.Name):
+                if node.func.id == "TableSchema" and argCnt > 2 and argCnt < 7:
+                    # Allow the `TableSchema` constructor to be called.
+                    pass
+                elif isinstance(node.func, ast.Name) and node.func.id == "locals" and argCnt == 0:
+                    # Allow `locals()` to be called to set up property names.
+                    pass
+                else:
+                    raise DisallowedConstructError(
+                        f"ast.Call to disallowed function {node.func.id}",
+                        fileToReport)
             else:
                 raise DisallowedConstructError(
-                    f"ast.Call to disallowed function {node.func.id}",
+                    f"ast.Disallowed function call {node.func}",
                     fileToReport)
         elif isinstance(node, ast.Attribute):
-            if (node.value.id != "DataType"):
+            if isinstance(node.value, ast.Name):
+                if (node.value.id != "DataType"):
+                    raise DisallowedConstructError(
+                        f"ast.Attribute access other than DataType: {node.value.id}",
+                        fileToReport)
+                if (node.attr not in DataType.__members__.keys()):
+                    raise DisallowedConstructError(
+                        f"ast.Attribute access to non-member of DataType: {node.attr}",
+                        fileToReport)
+            else:
                 raise DisallowedConstructError(
-                    f"ast.Attribute access other than DataType: {node.value.id}",
-                    fileToReport)
-            if (node.attr not in DataType.__members__.keys()):
-                raise DisallowedConstructError(
-                    f"ast.Attribute access to non-member of DataType: {node.attr}",
+                    f"ast.Attribute access of unnamed reference: {node.attr}",
                     fileToReport)
         elif not isinstance(node, allowedNodeTypes):
             raise DisallowedConstructError(type(node), fileToReport)
     safeCode = unsafeCode # Now that it has been validated.
     return safeCode
 
-def load_schema_from_file(filePath):
+def load_schema_from_file(filePath:str) -> TableSchema:
     """
     Eval a Python file to generate a TableSchema object.
 
@@ -157,7 +175,7 @@ def load_schema_from_file(filePath):
     return schema
 
 
-def load_schemas_from_dir(schemaDir):
+def load_schemas_from_dir(schemaDir:str) -> dict[str, TableSchema]:
     """
     Scans a directory and attempts to load any .py file as a TableSchema.
 
