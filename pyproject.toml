@@ -1,6 +1,6 @@
 [project]
 name = "rjtools.util"
-version = "0.0.4"
+version = "0.0.5"
 authors = [
     { name="Rich Joiner", email="rich@deerhoofgardens.com" },
 ]
@@ -8,6 +8,9 @@ description = "A library of utilities for logging and testing Python apps"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE.txt" }
+dependencies = [
+    "mypy==1.15",
+]
 
 [project.urls]
 Homepage = "https://github.com/blackoutjack/rjtools.util"
