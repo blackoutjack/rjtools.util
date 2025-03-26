@@ -5,11 +5,13 @@ Utility functions for converting values to and from strings
 import datetime
 import html
 import math
+from numbers import Real
+from typing import Union, Optional
 
 from .msg import warn
 
 
-def date_string(date):
+def date_string(date:datetime.date) -> str:
     """
     Convert the given date or datetime into an ISO string representing the date
 
@@ -30,7 +32,7 @@ def date_string(date):
         date.strftime("%d"))
 
 
-def date_user_string(date):
+def date_user_string(date:datetime.date) -> str:
     """
     Convert the given date or datetime into a American date string
 
@@ -52,7 +54,7 @@ def date_user_string(date):
     return "/".join([month, day, year])
 
 
-def timestamp_string(timestamp):
+def timestamp_string(timestamp:datetime.datetime) -> str:
     """
     Convert the given timestamp to ISO format
 
@@ -77,7 +79,7 @@ def timestamp_string(timestamp):
     )
 
 
-def now_time():
+def now_time() -> datetime.datetime:
     """
     Get the current time
 
@@ -87,7 +89,7 @@ def now_time():
     return datetime.datetime.now()
 
 
-def today_date():
+def today_date() -> datetime.date:
     """
     Get the current date
 
@@ -97,7 +99,7 @@ def today_date():
     return datetime.date.today()
 
 
-def now_string():
+def now_string() -> str:
     """
     Get the current time in ISO format
 
@@ -108,7 +110,7 @@ def now_string():
     return timestamp_string(now)
 
 
-def today_string():
+def today_string() -> str:
     """
     Get the current date in ISO format
 
@@ -119,7 +121,7 @@ def today_string():
     return date_string(today)
 
 
-def today_user_string():
+def today_user_string() -> str:
     """
     Get the current date with 1-or-2-digit month and day and 4-digit year
 
@@ -128,17 +130,17 @@ def today_user_string():
     today = today_date()
     return date_user_string(today)
 
-def _date_from_datetime(dateTime):
+def _date_from_datetime(dateTime:datetime.date) -> datetime.date:
     dateStrISO = date_string(dateTime)
     return datetime.date.fromisoformat(dateStrISO)
 
 
-def _date_from_string(dateStr, form):
+def _date_from_string(dateStr:str, form:str) -> datetime.date:
     dateTime = datetime.datetime.strptime(dateStr, form)
     return _date_from_datetime(dateTime)
 
 
-def get_prior_sunday(date):
+def get_prior_sunday(date:datetime.date) -> datetime.date:
     """
     Get a date object representing the Sunday prior to the given date
 
@@ -152,7 +154,7 @@ def get_prior_sunday(date):
     return date - delta
 
 
-def parse_date(dateStr, form="%Y-%m-%d"):
+def parse_date(dateStr:str, form:str="%Y-%m-%d") -> datetime.date:
     """
     Get an object representing the given date
 
@@ -180,7 +182,7 @@ def parse_date(dateStr, form="%Y-%m-%d"):
     return _date_from_string(dateStr, form)
 
 
-def parse_iso_date(dateISO):
+def parse_iso_date(dateISO:str) -> datetime.date:
     """
     Get an object representing the date given in "YYYY-mm-dd" format
 
@@ -193,7 +195,7 @@ def parse_iso_date(dateISO):
     return parse_date(dateISO, "%Y-%m-%d")
 
 
-def parse_user_date(dateStr):
+def parse_user_date(dateStr:str) -> datetime.date:
     """
     Get an object representing the possibly empty date given in American format
 
@@ -225,7 +227,7 @@ def parse_user_date(dateStr):
     return _date_from_string(dateStr, f"%m/%d/{yearComponent}")
 
 
-def iso_to_user_date(dateISO, doWarn=True):
+def iso_to_user_date(dateISO:str, doWarn:bool=True) -> str:
     """
     Convert ISO date string into American date ("m/d/Y" format)
 
@@ -241,14 +243,14 @@ def iso_to_user_date(dateISO, doWarn=True):
             warn(f"Error while parsing ISO date to display date: {str(ex)}")
         return None
 
-def parse_iso_timestamp_with_offset(timestamp):
+def parse_iso_timestamp_with_offset(timestamp:str) -> datetime.datetime:
     # The '%:z' format specifier is not being accepted (probably because of
     # the system strptime implementation).
     if timestamp.endswith(":00"):
         timestamp = timestamp[:-3] + timestamp[-2:]
     return parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S%z")
 
-def parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S"):
+def parse_timestamp(timestamp:str, form:str="%Y-%m-%d %H:%M:%S") -> datetime.datetime:
     """
     Create a datetime object representing the timestamp string
 
@@ -276,7 +278,7 @@ def parse_timestamp(timestamp, form="%Y-%m-%d %H:%M:%S"):
     return datetime.datetime.strptime(timestamp, form)
 
 
-def parse_date_idem(dateRepr):
+def parse_date_idem(dateRepr:Union[str,datetime.date]) -> datetime.date:
     """
     Get a datetime object representing the date given in various formats
 
@@ -310,7 +312,7 @@ def parse_date_idem(dateRepr):
         return None  # Give up
 
 
-def parse_digits(inputStr):
+def parse_digits(inputStr:str) -> tuple[str, str]:
     """
     Get any leading digits from the input string
 
@@ -333,7 +335,7 @@ def parse_digits(inputStr):
     return wholeNumberText, remaining
 
 
-def parse_numeric(inputStr):
+def parse_numeric(inputStr:str) -> tuple[float, str]:
     """
     Get a numeric prefix, including potential fraction part, from a string
 
@@ -393,7 +395,7 @@ def parse_numeric(inputStr):
     return number, remaining
 
 
-def parse_nonnumeric(inputStr):
+def parse_nonnumeric(inputStr:str) -> tuple[str,str]:
     """Get the next nonnumeric, whitespace-delimited word from the input
 
     :param inputStr: string to parse for a numeric prefix
@@ -411,7 +413,7 @@ def parse_nonnumeric(inputStr):
     return text, remaining
 
 
-def amount_to_grams(amount, nonFatalErrors:list|None=None):
+def amount_to_grams(amount:str, nonFatalErrors:Optional[list[str]]=None) -> int:
     """
     Parse a weight amount and convert it grams
 
@@ -451,9 +453,9 @@ def amount_to_grams(amount, nonFatalErrors:list|None=None):
     return math.floor(total)
 
 
-def alpha(number, lower=False):
+def alpha(number:Real, lower:bool=False) -> str:
     """
-    Convert a number to an spreadsheet column letter
+    Convert a number to a spreadsheet column letter
 
     :param num: int, the number 1-26 to convert to letter
     :raises TypeError: when ``num`` is not an integer
@@ -475,7 +477,7 @@ def alpha(number, lower=False):
     return chr(number + shift)
 
 
-def num(letter):
+def num(letter:str) -> int:
     """
     Convert a spreadsheet column letter to a 1-indexed number
 
@@ -499,7 +501,7 @@ def num(letter):
     return ord(letter) - shift
 
 
-def parse_range(sheetRange):
+def parse_range(sheetRange:str) -> tuple[str,tuple[int,int],tuple[int,int]]:
     """
     Parse a spreadsheet range string into its components: sheet name, start
         cell and optional end cell
@@ -560,7 +562,7 @@ def parse_range(sheetRange):
     return sheetName, (startColumn, startRow), (endColumn, endRow)
 
 
-def html_escape(val):
+def html_escape(val:str) -> str:
     """
     Escape the given value for HTML display
 
