@@ -1,25 +1,24 @@
 from numbers import Real
-from typing import TypeVar
+from typing import Optional, Union, cast
 
-def get_median_of_sorted(vals:list[TypeVar("T")]) -> TypeVar("T"):
+def get_median_of_sorted[T](vals:list[T]) -> Optional[Union[T,float]]:
     count = len(vals)
     if count == 0: return None 
 
     if count % 2 == 1 or not all([isinstance(v, Real) for v in vals]):
         return vals[count//2]
+    numvals = cast(list[float], vals)
 
-    return (vals[count//2] + vals[(count-1)//2]) / 2 
+    return (numvals[count//2] + numvals[(count-1)//2]) / 2 
 
-def get_modes_of_sorted(vals:list[TypeVar("T")]) -> list[TypeVar("T")]:
+def get_modes_of_sorted[T](vals:list[T]) -> Optional[list[T]]:
     if len(vals) == 0: return None 
 
     modes = []
     maxtimes = 0
-    last = None
-    times = 0
-    for val in vals:
-        if last is None: last = val
-
+    last = vals[0]
+    times = 1
+    for val in vals[1:]:
         if val == last:
             times += 1
         else:

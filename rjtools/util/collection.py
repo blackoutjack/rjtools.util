@@ -2,12 +2,10 @@
 
 from collections.abc import Callable
 from functools import reduce
-from typing import TypeVar
 
-def update_multimap(
-    multimap:dict[TypeVar("T")],
-    key:str, value:TypeVar("T")
-) -> bool:
+def update_multimap[K,V](
+    multimap:dict[K,list[V]],
+    key:K, value:V) -> bool:
     """
     Add a value to a multimap
 
@@ -23,10 +21,10 @@ def update_multimap(
     values.append(value)
     return foundDuplicate
 
-def flatmap(
-        func:Callable[[TypeVar("T")],list[TypeVar("U")]],
-        coll:list[TypeVar("T")]
-    ) -> list[TypeVar("U")]:
+def flatmap[T,U](
+        func:Callable[[T],list[U]],
+        coll:list[T]
+    ) -> list[U]:
     """
     Functional flatmap operation
 

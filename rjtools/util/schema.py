@@ -170,7 +170,7 @@ def load_schema_from_file(filePath:str) -> TableSchema:
         exec(safeCode, globals)
     except BaseException as ex:
         raise SchemaLoadError(str(ex))
-    schema = globals["schema"]
+    schema = cast(TableSchema, globals["schema"])
 
     return schema
 

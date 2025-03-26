@@ -195,7 +195,7 @@ def parse_iso_date(dateISO:str) -> datetime.date:
     return parse_date(dateISO, "%Y-%m-%d")
 
 
-def parse_user_date(dateStr:str) -> datetime.date:
+def parse_user_date(dateStr:str) -> Optional[datetime.date]:
     """
     Get an object representing the possibly empty date given in American format
 
@@ -211,7 +211,7 @@ def parse_user_date(dateStr:str) -> datetime.date:
         msg = f"Unable to parse non-string date value: {dateStr}"
         raise TypeError(msg)
 
-    if dateStr == "": return ""
+    if dateStr == "": return None
 
     # Append the current year if no year is given.
     firstSlash = dateStr.find("/")
@@ -227,7 +227,7 @@ def parse_user_date(dateStr:str) -> datetime.date:
     return _date_from_string(dateStr, f"%m/%d/{yearComponent}")
 
 
-def iso_to_user_date(dateISO:str, doWarn:bool=True) -> str:
+def iso_to_user_date(dateISO:str, doWarn:bool=True) -> Optional[str]:
     """
     Convert ISO date string into American date ("m/d/Y" format)
 
@@ -278,7 +278,7 @@ def parse_timestamp(timestamp:str, form:str="%Y-%m-%d %H:%M:%S") -> datetime.dat
     return datetime.datetime.strptime(timestamp, form)
 
 
-def parse_date_idem(dateRepr:Union[str,datetime.date]) -> datetime.date:
+def parse_date_idem(dateRepr:Union[str,datetime.date]) -> Optional[datetime.date]:
     """
     Get a datetime object representing the date given in various formats
 
@@ -429,7 +429,7 @@ def amount_to_grams(amount:str, nonFatalErrors:Optional[list[str]]=None) -> int:
 
     amount = amount.strip()
     text = amount
-    total = 0
+    total = 0.0
     if text == "":
         nonFatalErrors.append("No amount specified, assuming zero")
         return 0
@@ -501,7 +501,11 @@ def num(letter:str) -> int:
     return ord(letter) - shift
 
 
-def parse_range(sheetRange:str) -> tuple[str,tuple[int,int],tuple[int,int]]:
+def parse_range(sheetRange:str) -> tuple[
+        str,
+        tuple[Optional[int],Optional[int]],
+        tuple[Optional[int],Optional[int]]
+    ]:
     """
     Parse a spreadsheet range string into its components: sheet name, start
         cell and optional end cell
@@ -540,26 +544,26 @@ def parse_range(sheetRange:str) -> tuple[str,tuple[int,int],tuple[int,int]]:
         endColumn, endRow = parse_nonnumeric(rangeEnd)
 
     try:
-        startRow = int(startRow)
+        startRowi = int(startRow)
     except (TypeError, ValueError) as ex:
         msg = f"Unable to parse start row from '{startRow}': {str(ex)}"
         raise ValueError(msg)
 
-    if endRow in [None, ""]:
-        endRow = None
+    if endRow is None or endRow == "":
+        endRowi = None
     else:
         try:
-            endRow = int(endRow)
+            endRowi = int(endRow)
         except (TypeError, ValueError) as ex:
             msg = f"Unable to parse end row from '{endRow}': {str(ex)}"
             warn(msg)
             endRow = None
 
     # Convert column letters to numbers
-    startColumn = num(startColumn)
-    endColumn = num(endColumn)
+    startColumni = None if startColumn == "" else num(startColumn)
+    endColumni = None if endColumn == "" or endColumn is None else num(endColumn)
 
-    return sheetName, (startColumn, startRow), (endColumn, endRow)
+    return sheetName, (startColumni, startRowi), (endColumni, endRowi)
 
 
 def html_escape(val:str) -> str:
