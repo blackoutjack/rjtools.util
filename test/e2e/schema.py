@@ -6,11 +6,11 @@ from rjtools.util.schema import (TableSchema, DisallowedConstructError,
 TEST_DIR = os.path.dirname(__file__)
 
 def test_load_schema_basic():
-    schema = load_schema_from_file(os.path.join(TEST_DIR, "schemas/rainfall.py"))
+    schema = load_schema_from_file(os.path.join(TEST_DIR, "schemas/rainfall.pysch"))
     return isinstance(schema, TableSchema)
 
 def test_load_schema_problem():
-    schema = load_schema_from_file(os.path.join(TEST_DIR, "schemas-bad/rainfall.py"))
+    schema = load_schema_from_file(os.path.join(TEST_DIR, "schemas-bad/rainfall.pysch"))
     return isinstance(schema, TableSchema)
 
 out_load_schema_problem = "Exception occurred during schema/test_load_schema_problem: SchemaLoadError: Unable to load schema: name 'Date' is not defined"
@@ -20,7 +20,7 @@ result_load_schema_problem = None
 def test_try_load_schema_bad_syntax():
     try:
         load_schema_from_file(
-            os.path.join(TEST_DIR, "schemas-bad/badsyntax.py"))
+            os.path.join(TEST_DIR, "schemas-bad/badsyntax.pysch"))
         return False
     except SchemaLoadError:
         return True
@@ -28,7 +28,7 @@ def test_try_load_schema_bad_syntax():
 def test_try_load_schema_file_not_found():
     try:
         load_schema_from_file(
-            os.path.join(TEST_DIR, "schemas/filenotfound.py"))
+            os.path.join(TEST_DIR, "schemas/filenotfound.pysch"))
         return False
     except SchemaLoadError:
         return True
@@ -36,7 +36,7 @@ def test_try_load_schema_file_not_found():
 def test_try_load_schema_disallowed_syntax():
     try:
         load_schema_from_file(
-            os.path.join(TEST_DIR, "schemas-bad/disallowedsyntax.py"))
+            os.path.join(TEST_DIR, "schemas-bad/disallowedsyntax.pysch"))
         return False
     except DisallowedConstructError:
         return True

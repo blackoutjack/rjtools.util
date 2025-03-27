@@ -175,16 +175,17 @@ def load_schema_from_file(filePath:str) -> TableSchema:
     return schema
 
 
-def load_schemas_from_dir(schemaDir:str) -> dict[str, TableSchema]:
+def load_schemas_from_dir(schemaDir:str, ext=".pysch") -> dict[str, TableSchema]:
     """
-    Scans a directory and attempts to load any .py file as a TableSchema.
+    Scan `schemaDir` and try to load files matching `ext` as TableSchemas.
 
-    Restricted syntax is enforced, and errors in any file results in an error
-    for the entire directory. If you want the schemas that were loaded
+    Restricted Python syntax is enforced, and errors in any file results in an
+    error for the entire directory. If you want the schemas that were loaded
     successfully even if errors occurred in some, then call
     `load_schema_from_file` directly.
 
     :param schemaDir: directory containing the schema files
+    :param ext: extension of the schema files to load
     :raises: SchemaLoadError
     :return: map of table names to schemas found in the directory
     :rtype: map of str => TableSchema
@@ -193,8 +194,9 @@ def load_schemas_from_dir(schemaDir:str) -> dict[str, TableSchema]:
 
     schemas = {}
     for fileName in os.listdir(schemaDir):
-        if not fileName.endswith(".py"):
-            dbg(f"Skipping non-Python file {fileName} in schema directory {schemaDir}")
+        if not fileName.endswith(ext):
+            dbg(f"Skipping non-matching file {fileName} in schema directory "
+                f"{schemaDir}")
             continue
 
         filePath = os.path.join(schemaDir, fileName)
@@ -203,6 +205,7 @@ def load_schemas_from_dir(schemaDir:str) -> dict[str, TableSchema]:
         if isinstance(schema, TableSchema):
             schemas[schema.name] = schema
         else:
-            raise SchemaLoadError(f"Unexpected value produced when loading schema {filePath}: {schema}")
+            raise SchemaLoadError("Unexpected value produced when loading "
+                f"schema {filePath}: {schema}")
     return schemas
 
