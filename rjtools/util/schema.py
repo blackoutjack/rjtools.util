@@ -25,14 +25,14 @@ class DataType(Flag):
 
 
 class TableSchema:
-  def __init__(
-      self, name:str,
-      columnDefs:dict[str,DataType],
-      keyNames:Union[str,tuple[str]],
-      indexes:list[Union[str,tuple[str]]]=[],
-      extra:dict[str, Any]={},
-      headerRowNum:int=1,
-      foreignKeys:Optional[dict[str,str]]=None):
+    def __init__(
+            self, name:str,
+            columnDefs:dict[str,DataType],
+            keyNames:Union[str,tuple[str]],
+            indexes:list[Union[str,tuple[str]]]=[],
+            columnAccessorCandidates:dict[str, Any]={},
+            headerRowNum:int=1,
+            foreignKeys:Optional[dict[str,str]]=None):
         self.name = name
         self.columns = list(columnDefs.keys())
         self.columnTypes = columnDefs
@@ -40,11 +40,22 @@ class TableSchema:
         self.indexes = indexes
         self.header_row_num = headerRowNum
         self.foreign_keys = foreignKeys
-        for propName in extra.keys():
-            if hasattr(self, propName):
+        self.columnAccessors:dict[str,str] = {}
+
+        for colAcc in columnAccessorCandidates.keys():
+            if hasattr(self, colAcc):
                 raise ValueError(
-                    f"Cannot overwrite property {propName} in schema {name}")
-            setattr(self, propName, extra[propName])
+                    f"Cannot define column accessor {colAcc} in schema {name}")
+            colName = columnAccessorCandidates[colAcc]
+            if isinstance(colName, str):
+                self.columnAccessors[colAcc] = colName
+
+    # Allows accessing columns like `myRecord[schema.MY_COLUMN]`
+    def __getattr__(self, name: str) -> str:
+        if name not in self.columnAccessors:
+            raise AttributeError(
+                f"{name} is not a valid column accessor for table {self.name}")
+        return self.columnAccessors[name]
 
 class SchemaLoadError(Exception):
     def __init__(self, msg:str, fileName:Optional[str]=None):
@@ -55,7 +66,7 @@ class SchemaLoadError(Exception):
         super().__init__(message)
 
 class DisallowedConstructError(SchemaLoadError):
-    def __init__(self, constructName:Any, fileName:Optional[str]=None):
+    def __init__(self, constructName:str, fileName:Optional[str]=None):
         message = f"Disallowed code {constructName}"
         if fileName is not None:
             message += f" in file {fileName}"
@@ -112,7 +123,7 @@ def validate_schema_definition(unsafeCode:str, fileToReport:Optional[str]=None) 
                     f"ast.Attribute access of unnamed reference: {node.attr}",
                     fileToReport)
         elif not isinstance(node, allowedNodeTypes):
-            raise DisallowedConstructError(type(node), fileToReport)
+            raise DisallowedConstructError(str(type(node)), fileToReport)
     safeCode = unsafeCode # Now that it has been validated.
     return safeCode
 
