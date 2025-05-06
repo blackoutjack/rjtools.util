@@ -1,6 +1,6 @@
 [project]
 name = "rjtools.util"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
     { name="Rich Joiner", email="rich@deerhoofgardens.com" },
 ]
