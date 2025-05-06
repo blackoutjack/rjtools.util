@@ -322,15 +322,14 @@ def check_result(mod, testName, expectedVarname, testResult, command=None):
 def get_test_identifier(mod, testName):
     return "%s/%s" % (mod.__name__, testName)
 
-def check_output_grep(searchVal, text):
+def check_output_grep(searchVal, text) -> bool:
     # Run the check variants. If any succeed, the overall check passes.
     result = re.search(searchVal, text)
     #result = output.find(searchVal) >= 0
 
     # %%% Provide the test a way to retrieve regex matches.
 
-    result = False if result is None else True
-    return result
+    return False if result is None else True
 
 def check_output(mod, testName, expectedVarname, output, streamName, command=None):
     testId = get_test_identifier(mod, testName)
@@ -589,14 +588,14 @@ def run_batch(mod, testName, commandPrefix=None):
 
     spec = " ".join(args) + "\n" + commands.removeprefix("\n").removesuffix("\n")
 
-    commands = commands.encode('utf-8')
+    byteCommands = commands.encode('utf-8')
 
     # Pass along debug option
     if get_debug(): args.append("-g")
 
     dbg("Running batch process: '%s'" % "' '".join(args))
 
-    processResult = subprocess.run(args, capture_output=True, input=commands, env=os.environ)
+    processResult = subprocess.run(args, capture_output=True, input=byteCommands, env=os.environ)
 
     # Matched to release() after print_result in caller.
     module_lock.acquire()
@@ -647,11 +646,6 @@ def print_fail(packageName, modName, testName):
 def copy_store_to_mirror(sourceOption, targetOption):
     """Create a copy of the data store for the testsuite to run on."""
 
-    # %%% This needs to be abstracted out to a plugin, or link directly into
-    # %%% storeconverter.
-    venvActivate = os.path.join(Path.home(), ".venvs", "shrem", "bin", "activate")
-    shremDir = os.path.join(Path.home(), "lib", "shrem")
-
     # %%% Requires running with virtualenv already activated.
     args = ["python", "-m", "shrem", "convert", "--store", sourceOption, "--target", targetOption]
 
@@ -667,7 +661,7 @@ def initialize_dynamic_test_stores(testPackages):
     if not type(testPackages) is list:
         testPackages = [testPackages]
 
-    storeMap = {}
+    storeMap:dict[str,str] = {}
     for testPackage in testPackages:
         packageDict = testPackage.__dict__
         if "TEST_STORE_OPTION" not in packageDict:
@@ -871,7 +865,7 @@ def run_modules(packageName, moduleMap, commandPrefix=None):
 
     if MULTITHREADED:
 
-        q = Queue()
+        q:Queue[ModuleType] = Queue()
 
         def worker(pkgName, res):
             while True:
@@ -948,14 +942,14 @@ def run_packages(suiteName, packageMap):
     :return: TestResults object summarizing the test packages that were run
     '''
     dbg("Initializing suite %s" % suiteName)
-    results = []
+    results:list[TestResults] = []
 
     packageCount = len(packageMap.values())
 
     initialize_dynamic_test_stores(list(packageMap.values()))
 
     if MULTITHREADED:
-        q = Queue()
+        q:Queue[ModuleType] = Queue()
 
         def worker(res):
             while True:

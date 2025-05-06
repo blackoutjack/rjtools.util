@@ -3,9 +3,7 @@
 from collections.abc import Callable
 from functools import reduce
 
-def update_multimap[K,V](
-    multimap:dict[K,list[V]],
-    key:K, value:V) -> bool:
+def update_multimap[K,V](multimap:dict[K,list[V]], key:K, value:V) -> bool:
     """
     Add a value to a multimap
 

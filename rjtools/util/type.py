@@ -1,6 +1,8 @@
 """Utility functions for type-checking"""
 
-def empty(value):
+from typing import Any, TypeGuard
+
+def empty(value:Any) -> bool:
     """
     Emptiness check, polymorphic over None, str and list
 
@@ -10,7 +12,7 @@ def empty(value):
     """
     return value in [None, '', [], {}]
 
-def nonempty(value):
+def nonempty[T](value:T|None) -> TypeGuard[T]:
     """Non-emptiness check, inverse of `empty`
 
     :param value: value to check for emptiness

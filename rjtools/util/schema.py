@@ -3,7 +3,7 @@ Data types and schema class for constructing a database wrapper
 """
 import os
 import ast
-from typing import Optional, Union, Any, cast
+from typing import Any
 
 from .type import type_check
 from .msg import dbg
@@ -23,16 +23,17 @@ class DataType(Flag):
     CREATETIMESTAMP = auto()
     AUTOTIMESTAMP = auto()
 
+type TableKey = str|tuple[str,...]
 
 class TableSchema:
     def __init__(
             self, name:str,
             columnDefs:dict[str,DataType],
-            keyNames:Union[str,tuple[str]],
-            indexes:list[Union[str,tuple[str]]]=[],
+            keyNames:TableKey,
+            indexes:list[TableKey]=[],
             columnAccessorCandidates:dict[str, Any]={},
             headerRowNum:int=1,
-            foreignKeys:Optional[dict[str,str]]=None):
+            foreignKeys:dict[str,str]|None=None):
         self.name = name
         self.columns = list(columnDefs.keys())
         self.columnTypes = columnDefs
@@ -58,7 +59,7 @@ class TableSchema:
         return self.columnAccessors[name]
 
 class SchemaLoadError(Exception):
-    def __init__(self, msg:str, fileName:Optional[str]=None):
+    def __init__(self, msg:str, fileName:str|None=None):
         message = "Unable to load schema"
         if fileName is not None:
             message += f" from file {fileName}"
@@ -66,14 +67,14 @@ class SchemaLoadError(Exception):
         super().__init__(message)
 
 class DisallowedConstructError(SchemaLoadError):
-    def __init__(self, constructName:str, fileName:Optional[str]=None):
+    def __init__(self, constructName:str, fileName:str|None=None):
         message = f"Disallowed code {constructName}"
         if fileName is not None:
             message += f" in file {fileName}"
         super().__init__(message)
 
 
-def validate_schema_definition(unsafeCode:str, fileToReport:Optional[str]=None) -> str:
+def validate_schema_definition(unsafeCode:str, fileToReport:str|None=None) -> str:
     """
     Walks the given code's ast and errors if unallowed constructs are found
 
@@ -181,9 +182,11 @@ def load_schema_from_file(filePath:str) -> TableSchema:
         exec(safeCode, globals)
     except BaseException as ex:
         raise SchemaLoadError(str(ex))
-    schema = cast(TableSchema, globals["schema"])
+    if not isinstance(globals["schema"], TableSchema):
+        raise SchemaLoadError(
+            f"The 'schema' in {filePath} does not define a TableSchema")
 
-    return schema
+    return globals["schema"]
 
 
 def load_schemas_from_dir(schemaDir:str, ext=".pysch") -> dict[str, TableSchema]:

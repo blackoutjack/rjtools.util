@@ -7,8 +7,8 @@ import sys
 
 DEBUG = False
 
-MESSAGE_LOG = []
-INFO_LOG = []
+MESSAGE_LOG:list[dict[str,str]] = []
+INFO_LOG:list[str] = []
 
 LOG_INFO_OUTPUT = True
 

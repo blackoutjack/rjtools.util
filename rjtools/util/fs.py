@@ -12,7 +12,7 @@ import sys
 import time
 
 from .testutil import Link
-from .msg import err, info
+from .msg import err
 
 class StandardFS:
     """
@@ -77,13 +77,10 @@ class StubFS:
     def resolve(self, path):
 
         prefix = path
-        parts = []
+        parts:list[str] = []
         while prefix not in ["", "/"]:
             prefix, part = os.path.split(prefix)
             parts.insert(0, part)
-
-        # Doesn't really matter, as we currently assume CWD is at the fs root.
-        absolute = prefix == "/"
 
         # Starting at the fs root, resolve the file/directory contents
 
@@ -185,7 +182,7 @@ class StubFS:
         filepath, contents = self.resolve(path)
         return len(contents)
 
-fs = StandardFS()
+fs:StubFS|StandardFS = StandardFS()
 
 """
 Top-level functions to call into the current fs instance
@@ -267,7 +264,7 @@ def is_hidden(filepath):
     # Windows. %%% Untested
     try:
         attributes = os.stat(filepath).st_mode
-        return bool(attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+        return bool(attributes & stat.FILE_ATTRIBUTE_HIDDEN) # type: ignore[attr-defined]
     except AttributeError:
         return None
     except FileNotFoundError:

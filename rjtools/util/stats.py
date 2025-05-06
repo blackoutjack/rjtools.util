@@ -1,17 +1,22 @@
+from typing import TypeGuard
 from numbers import Real
-from typing import Optional, Union, cast
 
-def get_median_of_sorted[T](vals:list[T]) -> Optional[Union[T,float]]:
+def get_median_of_sorted[T](vals:list[T]) -> T|float|None:
     count = len(vals)
     if count == 0: return None 
 
-    if count % 2 == 1 or not all([isinstance(v, Real) for v in vals]):
+    def isFloatList(vs:list[T]) -> TypeGuard[list[float|int]]:
+        # Real means float|int, so that is the isinstance check we want.
+        # However, mypy type checking does not work with Real, therefore
+        # use float|int in the TypeGuard.
+        return all([isinstance(v, Real) for v in vals])
+
+    if count % 2 == 1 or not isFloatList(vals):
         return vals[count//2]
-    numvals = cast(list[float], vals)
 
-    return (numvals[count//2] + numvals[(count-1)//2]) / 2 
+    return (vals[count//2] + vals[(count-1)//2]) / 2 
 
-def get_modes_of_sorted[T](vals:list[T]) -> Optional[list[T]]:
+def get_modes_of_sorted[T](vals:list[T]) -> list[T]|None:
     if len(vals) == 0: return None 
 
     modes = []

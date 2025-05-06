@@ -5,6 +5,11 @@ def test_median_basic():
     median = get_median_of_sorted(vals)
     return median == 4
 
+def test_median_even():
+    vals = [1, 4]
+    median = get_median_of_sorted(vals)
+    return median == 2.5
+
 def test_median_empty():
     vals = []
     median = get_median_of_sorted(vals)

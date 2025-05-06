@@ -5,8 +5,6 @@ Utility functions for converting values to and from strings
 import datetime
 import html
 import math
-from numbers import Real
-from typing import Union, Optional
 
 from .msg import warn
 
@@ -195,7 +193,7 @@ def parse_iso_date(dateISO:str) -> datetime.date:
     return parse_date(dateISO, "%Y-%m-%d")
 
 
-def parse_user_date(dateStr:str) -> Optional[datetime.date]:
+def parse_user_date(dateStr:str|None) -> datetime.date|None:
     """
     Get an object representing the possibly empty date given in American format
 
@@ -227,7 +225,7 @@ def parse_user_date(dateStr:str) -> Optional[datetime.date]:
     return _date_from_string(dateStr, f"%m/%d/{yearComponent}")
 
 
-def iso_to_user_date(dateISO:str, doWarn:bool=True) -> Optional[str]:
+def iso_to_user_date(dateISO:str, doWarn:bool=True) -> str|None:
     """
     Convert ISO date string into American date ("m/d/Y" format)
 
@@ -278,7 +276,7 @@ def parse_timestamp(timestamp:str, form:str="%Y-%m-%d %H:%M:%S") -> datetime.dat
     return datetime.datetime.strptime(timestamp, form)
 
 
-def parse_date_idem(dateRepr:Union[str,datetime.date]) -> Optional[datetime.date]:
+def parse_date_idem(dateRepr:str|datetime.date) -> datetime.date|None:
     """
     Get a datetime object representing the date given in various formats
 
@@ -413,7 +411,7 @@ def parse_nonnumeric(inputStr:str) -> tuple[str,str]:
     return text, remaining
 
 
-def amount_to_grams(amount:str, nonFatalErrors:Optional[list[str]]=None) -> int:
+def amount_to_grams(amount:str, nonFatalErrors:list[str]|None=None) -> int:
     """
     Parse a weight amount and convert it grams
 
@@ -453,7 +451,7 @@ def amount_to_grams(amount:str, nonFatalErrors:Optional[list[str]]=None) -> int:
     return math.floor(total)
 
 
-def alpha(number:Real, lower:bool=False) -> str:
+def alpha(number:float, lower:bool=False) -> str:
     """
     Convert a number to a spreadsheet column letter
 
@@ -503,8 +501,8 @@ def num(letter:str) -> int:
 
 def parse_range(sheetRange:str) -> tuple[
         str,
-        tuple[Optional[int],Optional[int]],
-        tuple[Optional[int],Optional[int]]
+        tuple[int|None,int|None],
+        tuple[int|None,int|None]
     ]:
     """
     Parse a spreadsheet range string into its components: sheet name, start
